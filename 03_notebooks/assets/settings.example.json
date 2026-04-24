@@ -1,0 +1,33 @@
+{
+  "// permissions": "Bash rules are specific command prefixes; Read/Write accept path globs. Run /permissions inside Claude Code to manage these interactively.",
+  "permissions": {
+    "allow": [
+      "Bash(npm test:*)",
+      "Bash(npm run lint:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Read",
+      "Write(./src/**)"
+    ],
+    "deny": [
+      "Write(./migrations/**)",
+      "Bash(rm -rf:*)"
+    ]
+  },
+
+  "// hooks": "Hooks are deterministic shell commands wired into Claude's tool-call lifecycle. This one auto-fixes lint after every Edit inside src/.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'file=$CLAUDE_TOOL_INPUT_FILE_PATH; case \"$file\" in ./src/*) npm run lint -- --fix \"$file\" ;; esac'"
+          }
+        ]
+      }
+    ]
+  }
+}
