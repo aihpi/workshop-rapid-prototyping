@@ -1,0 +1,68 @@
+Here is the drum machine HTML file you produced for me. Extend it with sound
+design controls, so that each instrument can be shaped rather than just switched
+on and off.
+
+Paste your current file below this line before you send the prompt:
+
+---
+
+Keep all the existing rules: still exactly one self-contained .html file, no
+libraries, no CDN, no build step, all sounds synthesised with the Web Audio API,
+no audio sample files, and it must run when opened from disk as file://...
+
+Keep the performance rules too. Every node created for a single note is still
+disconnected when that note ends, the playhead still only touches the cells that
+changed, and the animation loop still stops when the sequencer stops. This step is
+where it gets dangerous: a voice that used to be two nodes is about to become six,
+so a leak that was slow before will now bring the page down in a couple of minutes.
+
+Add a sound panel per instrument, with these controls:
+
+- Tune: shifts the pitch of the sound up and down.
+- Decay: how long the sound rings out, from a very short click to a long tail.
+- Lowpass filter: cutoff frequency and resonance.
+- Highpass filter: cutoff frequency.
+- Drive: a waveshaper distortion, from clean to dirty.
+- Delay: delay time, feedback amount, and a dry/wet mix.
+- Reverb: a convolver reverb with a dry/wet mix. Generate the impulse response in
+  code from decaying random noise. Do not load an impulse response file.
+
+Add a master section at the end of the signal chain:
+
+- A master volume.
+- A compressor, so that loud patterns do not clip.
+- A master reverb with its own dry/wet mix.
+
+On the layout:
+
+- Put each instrument's sound panel behind a collapsible section, folded up by
+  default, so the step grid stays visible and the page does not become a wall of
+  sliders.
+- Show the current value next to every slider as a number with a unit.
+- Every control should take effect immediately, while the pattern keeps playing.
+  I want to hear the change as I drag the slider.
+
+On the audio graph and performance:
+
+- Build one persistent effect chain per instrument and route the voices through
+  it. Do not rebuild the effects on every single note, that will crackle and eat
+  the CPU.
+- Keep the existing per-instrument volume and mute working alongside the new
+  controls.
+- The per-note nodes are still per-note. Disconnect them on the source's ended
+  event, exactly as before. The effect chain persists, the voice does not.
+- Build each reverb impulse response once and keep it. Rebuilding it means filling
+  a multi-second buffer with random numbers, which will freeze the page if it
+  happens on every note or on every slider movement. Only recompute it when the
+  reverb time actually changes, and then reuse the result.
+- The same goes for the waveshaper curve. Compute one curve per drive value, not
+  one per note.
+- A slider fires its input event dozens of times a second while I drag it. Those
+  handlers must only set AudioParam values, with setTargetAtTime or
+  setValueAtTime. They must never create, replace or reconnect nodes. Use
+  setTargetAtTime rather than assigning to .value directly, so the change does not
+  click.
+- Read every parameter from a plain state object at the moment a note is
+  triggered. Do not query the DOM for slider values inside the audio scheduler.
+
+Give me the complete updated file in one code block.

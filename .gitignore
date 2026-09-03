@@ -194,3 +194,6 @@ cython_debug/
 .cursorindexingignore
 # Workshop author's personal notes (not committed)
 notes_*.txt
+
+# Workshop scratch space, not part of the material
+tmp/

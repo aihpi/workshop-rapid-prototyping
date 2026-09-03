@@ -1,0 +1,76 @@
+I want to add one feature to my drum machine, and I want to think it through with
+you before either of us writes any code.
+
+I WANT TO ADD:
+
+Currently, the presets are saved as json inside the 
+html. However, I want to download them as standalone 
+json, which I store on my device. Remove the preset drop 
+down menu.
+
+Paste your current drum machine file below this line, so you know what you are
+working with:
+
+---
+
+Now here is how I want you to handle this.
+
+Do not write any code in this conversation. Not a snippet, not an outline, not
+"here is roughly how it would look". If you catch yourself starting, stop.
+
+Instead, interview me about the feature until we both understand it the same way.
+The rules for that:
+
+- One question at a time. Wait for my answer before asking the next one. A list of
+  eight questions at once is overwhelming and I will answer it badly.
+- Give me your recommended answer with every question, and say why. Most of the
+  time I will just say yes, and that is fine. I am here to catch the cases where
+  your recommendation is wrong, not to make every decision from scratch.
+- Take the decisions in the order that they depend on each other. Ask the question
+  that changes the other answers first.
+- Where the file I pasted already settles something, read it and tell me, do not
+  ask me.
+
+Things worth getting to, if they apply:
+
+- What it looks like from the player's side. What do I click, drag or press, and
+  what happens.
+- Where it lives on screen, and what has to move to make room.
+- How it interacts with what already exists: the grid, the tempo, mute and volume,
+  the sound controls, the presets, the patterns I have saved.
+- What happens to patterns I saved before this feature existed. Old saved data is
+  where features like this usually break.
+- What it costs while the music is playing. Does it add nodes to the audio graph,
+  work on every animation frame, or work on every note.
+- What we are deliberately not doing in the first version.
+
+When you have enough, say so and summarise the feature back to me in a few
+sentences, then ask me to confirm. Do not carry on interviewing past the point
+where you could write it.
+
+Once I confirm, do one last thing.
+
+Write me a single prompt, in one code block, that I can paste into a brand new
+chat to actually get this built.
+
+That new chat will not have seen any of this conversation, so the prompt has to
+stand on its own. It must contain:
+
+- The feature, specified the way we agreed it, in enough detail that someone who
+  has read nothing else can build it.
+- An instruction to ask me to paste in my current HTML file first.
+- All the standing rules for this project: exactly one self-contained .html file
+  with the CSS and JavaScript inline, no libraries, no frameworks, no CDN links,
+  no npm, no build step, every sound synthesised with the Web Audio API and no
+  audio sample files, and it has to work when opened from disk as file://...
+- The performance rules, because they are easy to lose and expensive to get back:
+  nodes created for a single note are disconnected when that note ends, using the
+  source node's ended event; anything that can be built once is built once and not
+  rebuilt per note; slider handlers only set AudioParam values and never create or
+  reconnect nodes; the playhead only touches the cells that changed; no animation
+  frame loop while the sequencer is stopped.
+- An instruction to return the complete file, not a diff and not just the changed
+  functions.
+
+Write that prompt as if I were a stranger to the project. If it only makes sense
+to someone who sat through our conversation, it is not finished.

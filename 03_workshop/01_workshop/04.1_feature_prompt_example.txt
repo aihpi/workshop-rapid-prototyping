@@ -1,0 +1,82 @@
+I have an existing browser-based drum machine that I want you to modify. Before doing anything else, ask me to paste or attach my current HTML file. Do not propose implementation details or write any code until you have received and inspected that file.
+
+Build the following feature:
+
+Replace all built-in and browser-based pattern storage with standalone JSON files.
+
+Current behavior to remove:
+- The HTML contains five built-in presets: Trap, Trip hop, Drum and bass, House, and Boom bap.
+- Those presets are selected through a preset dropdown.
+- Patterns can also be saved in browser localStorage and displayed in a saved-pattern list.
+- There are currently separate Save, Export JSON, and Import JSON actions.
+
+Required new player experience:
+- Remove the preset dropdown, its load button, and all five embedded preset definitions from the HTML.
+- Remove the normal browser-localStorage Save button and saved-pattern list.
+- Use standalone JSON files as the only ongoing pattern-storage system.
+- In the existing pattern-storage area, show one compact, responsive row containing:
+  - The existing Name field.
+  - A “Download JSON” button.
+  - A “Load JSON” button.
+- Do not move or redesign the grid, transport, tempo, swing, mute, volume, mixer, or sound controls unnecessarily.
+- The controls may wrap appropriately on narrow screens.
+
+Downloading:
+- “Download JSON” must serialize the complete current drum-machine state, including the pattern, tempo, swing, loop setting, instrument sound settings, per-instrument volumes and mute states, and master settings.
+- Use the Name field to form a filesystem-safe `.json` filename.
+- If Name is blank, use `drum-pattern.json`.
+- Show a brief status message confirming the download.
+- Saving must not write the current pattern to localStorage.
+
+Loading:
+- “Load JSON” must open a local JSON file picker.
+- After the user selects a valid file, apply it immediately; there must be no second Load or Apply action.
+- Preserve the existing unsaved-changes warning. If the current state has unsaved changes, ask for confirmation before replacing it.
+- Validate the complete file before changing the current machine state.
+- If parsing or validation fails, leave the current state unchanged and display a useful error.
+- After a successful load, populate the Name field from the selected filename without its `.json` extension.
+- Loading must restore the entire saved state, not only the step grid.
+- If the sequencer is playing, keep it playing. Already-scheduled audio may finish naturally, but subsequent scheduling must use the newly loaded pattern, tempo, swing, mixer, mute, volume, master, and sound settings.
+- Loading must not create a duplicate pattern in localStorage.
+
+Legacy browser-save recovery:
+- Existing users may already have patterns stored under the app’s current localStorage system. Do not make those patterns inaccessible and do not delete them.
+- If legacy browser-saved patterns are detected, show a temporary recovery panel beneath the new file controls.
+- List each legacy pattern with its own “Download JSON” action.
+- Each recovery download must produce a standalone JSON file containing that pattern’s complete saved state.
+- Downloading a recovered pattern must not delete or modify its localStorage copy.
+- Do not provide a bulk automatic download because browsers may block multiple downloads from a `file://` page.
+- Include a Dismiss action for the recovery panel.
+- Once dismissed, keep the panel hidden on later visits, while leaving the legacy pattern data intact.
+- This recovery mechanism is only for old data. Newly downloaded or loaded patterns must not be added to browser storage.
+
+Factory-preset archive:
+- Remove Trap, Trip hop, Drum and bass, House, and Boom bap completely from the updated HTML.
+- In addition to the updated HTML, return five standalone `.json` files, one for each of those current presets.
+- Preserve each preset’s existing pattern, tempo, swing, loop setting, instrument settings, volumes, mute states, and master settings exactly as found in my current file.
+- Give the files clear filesystem-safe names such as `trap.json`, `trip-hop.json`, `drum-and-bass.json`, `house.json`, and `boom-bap.json`.
+- These JSON files are optional user data files for my archive. They must not be runtime dependencies, and the HTML must work fully if they are absent.
+
+Compatibility and scope:
+- Preserve compatibility with valid JSON files previously exported by the current app.
+- Preserve all unrelated drum-machine behavior and appearance.
+- Do not add audio nodes, per-note processing, animation work, or continuous background work for this feature.
+- Do not introduce drag-and-drop loading, cloud storage, directory management, automatic synchronization, multiple-pattern package files, or a new preset browser in this version.
+
+Standing project rules:
+- The application itself must remain exactly one self-contained `.html` file.
+- All CSS and JavaScript must remain inline in that HTML.
+- Use no libraries, frameworks, CDN links, npm packages, or build step.
+- Every sound must be synthesized with the Web Audio API.
+- Do not use audio sample files.
+- The application must work when opened directly from disk using `file://`.
+- The five requested JSON archive files are user data exports, not application source files or dependencies, so they do not violate the one-HTML-file application requirement.
+
+Performance rules that must remain true:
+- Nodes created for a single note must be disconnected when that note ends, using the source node’s `ended` event.
+- Anything that can be built once must be built once and must not be rebuilt per note.
+- Slider handlers may only set `AudioParam` values; they must never create or reconnect audio nodes.
+- The playhead must touch only the cells whose visual state changed.
+- There must be no animation-frame loop while the sequencer is stopped.
+
+After inspecting my file, implement and verify the feature. Return the complete updated HTML file, not a diff, patch, excerpt, or collection of changed functions. Also return the five complete standalone preset JSON files described above.
