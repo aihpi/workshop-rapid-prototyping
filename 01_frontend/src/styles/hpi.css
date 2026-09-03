@@ -1,0 +1,146 @@
+/*
+  HPI brand tokens. Source: HPI Manual Update 2025.
+  Every colour in the app comes from here. Nothing else declares a hex value.
+
+  Primary: the four CI colours in the logo. Secondary: only ONE may appear on
+  screen at a time, so a single one is chosen as the accent and the rest are
+  declared but unused. Track colours use the permitted 100/75/50/25% gradations
+  of the primaries.
+*/
+:root {
+  /* primary */
+  --hpi-red: #b1063a;
+  --hpi-orange: #dd6108;
+  --hpi-yellow: #f6a800;
+  --hpi-grey: #5a6065;
+
+  /* secondary, one at a time */
+  --hpi-purple: #7664a0;
+  --hpi-petrol: #007a9e;
+  --hpi-green: #779a0b;
+  --hpi-dark-green: #007f6f;
+
+  /* neutrals from the web scheme */
+  --hpi-ink: #212427;
+  --hpi-white: #ffffff;
+
+  /* semantic */
+  --accent: var(--hpi-petrol);
+  --bg: var(--hpi-ink);
+  --bg-raised: color-mix(in srgb, var(--hpi-ink) 85%, var(--hpi-white));
+  --bg-sunken: color-mix(in srgb, var(--hpi-ink) 92%, black);
+  --fg: var(--hpi-white);
+  --fg-muted: color-mix(in srgb, var(--hpi-white) 60%, var(--hpi-grey));
+  --border: color-mix(in srgb, var(--hpi-grey) 50%, var(--hpi-ink));
+
+  /* typography. Neo Sans is licensed and never shipped; it renders where installed. */
+  --font: "Neo Sans", "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --leading: 1.35;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  line-height: var(--leading);
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.brand {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.brand::before {
+  content: "";
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.5em;
+  background: var(--accent);
+  vertical-align: 0.05em;
+}
+
+.muted {
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.panel {
+  padding: 1.25rem;
+}
+
+.transport,
+.history {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.right {
+  margin-left: auto;
+}
+
+.readout {
+  min-width: 4.5rem;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.button {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--fg);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.button.ghost {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--fg-muted);
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
