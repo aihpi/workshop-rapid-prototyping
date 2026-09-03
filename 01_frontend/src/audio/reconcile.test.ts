@@ -18,6 +18,7 @@ class Recorder implements EngineLike {
   syncClip(c: Clip, p: Pattern) { this.calls.push(`syncClip ${c.id}<-${p.id}`); }
   removeClip(id: string) { this.calls.push(`removeClip ${id}`); }
   setBpm(bpm: number) { this.calls.push(`setBpm ${bpm}`); }
+  setMasterVolume(db: number) { this.calls.push(`setMasterVolume ${db}`); }
 }
 
 function fixture(): SongDoc {
@@ -52,6 +53,7 @@ describe("reconcile", () => {
     reconcile(null, store().doc, engine);
     expect(engine.calls).toEqual([
       "setBpm 120",
+      "setMasterVolume 0",
       "addTrack drums",
       "addTrack bass",
       "syncClip c1<-p1",
@@ -105,6 +107,12 @@ describe("reconcile", () => {
     const [prev, next] = edit((d) => ops.makeUnique(d, "c2", "p3", () => "n"));
     reconcile(prev, next, engine);
     expect(engine.calls).toEqual(["syncClip c2<-p3"]);
+  });
+
+  it("the master fader is one call", () => {
+    const [prev, next] = edit((d) => ops.setMasterVolume(d, -6));
+    reconcile(prev, next, engine);
+    expect(engine.calls).toEqual(["setMasterVolume -6"]);
   });
 
   it("a tempo change is one call", () => {

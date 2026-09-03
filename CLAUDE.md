@@ -10,6 +10,7 @@ The workshop material it sits next to lives in `03_workshop/`.
 npm ci                  # install everything
 npm run typecheck       # all workspaces
 npm test                # all workspaces
+npm run e2e             # Playwright against the Vite dev server, no API needed
 npm run dev:api         # Fastify on :3000, needs `docker compose up db`
 npm run dev:web         # Vite on :5173, proxies /api to :3000
 docker compose up --build   # the whole thing on :8080
@@ -35,6 +36,10 @@ Run typecheck and tests before declaring a step done, and show the output.
 - Colours come from `01_frontend/src/styles/hpi.css`. No hex literals anywhere else.
   At most one HPI secondary colour on screen; track colours are primary gradations.
 - Drag and resize touch the store once, on pointerup.
+- Gesture code receives the element to capture on explicitly. A React event's
+  `nativeEvent.currentTarget` is the root container, not the element.
+- Behaviour that a unit test cannot reach (pointer capture, double-click, downloads) is
+  checked by driving headless Chrome through the DevTools protocol or Playwright.
 
 ## Style
 

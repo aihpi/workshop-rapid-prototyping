@@ -133,6 +133,25 @@ describe("step grid", () => {
   });
 });
 
+describe("pattern length", () => {
+  it("shortening drops notes that fall off the end, lengthening keeps everything", () => {
+    const song = fixture();
+    ops.toggleStep(song, "p1", 36, 0, STEP_TICKS, "a");
+    ops.toggleStep(song, "p1", 36, BAR / 2, STEP_TICKS, "b");
+    ops.setPatternLength(song, "p1", BAR / 2);
+    expect(song.patterns["p1"]!.notes.map((n) => n.id)).toEqual(["a"]);
+    ops.setPatternLength(song, "p1", 4 * BAR);
+    expect(song.patterns["p1"]!.lengthTicks).toBe(4 * BAR);
+    expect(song.patterns["p1"]!.notes).toHaveLength(1);
+  });
+
+  it("renames", () => {
+    const song = fixture();
+    ops.renamePattern(song, "p1", "Chorus");
+    expect(song.patterns["p1"]!.name).toBe("Chorus");
+  });
+});
+
 describe("sections", () => {
   it("stay sorted by start", () => {
     const song = fixture();

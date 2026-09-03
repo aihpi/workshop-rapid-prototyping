@@ -56,6 +56,19 @@ export function addPattern(doc: SongDoc, pattern: Pattern): void {
   doc.patterns[pattern.id] = pattern;
 }
 
+export function renamePattern(doc: SongDoc, patternId: string, name: string): void {
+  const pattern = doc.patterns[patternId];
+  if (pattern) pattern.name = name;
+}
+
+/** Notes that no longer fit are dropped, so a shortened pattern never plays ghosts. */
+export function setPatternLength(doc: SongDoc, patternId: string, lengthTicks: number): void {
+  const pattern = doc.patterns[patternId];
+  if (!pattern) return;
+  pattern.lengthTicks = Math.max(1, lengthTicks);
+  pattern.notes = pattern.notes.filter((n) => n.start < pattern.lengthTicks);
+}
+
 /** Only used by the save-time sweep. The live document never garbage-collects. */
 export function removeOrphanPatterns(doc: SongDoc): void {
   const referenced = new Set(Object.values(doc.clips).map((c) => c.patternId));
@@ -139,6 +152,10 @@ export function toggleStep(
 
 export function setBpm(doc: SongDoc, bpm: number): void {
   doc.meta.bpm = bpm;
+}
+
+export function setMasterVolume(doc: SongDoc, db: number): void {
+  doc.meta.masterVolume = Math.min(6, Math.max(-60, db));
 }
 
 export function setTitle(doc: SongDoc, title: string): void {

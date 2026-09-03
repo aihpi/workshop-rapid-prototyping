@@ -19,7 +19,7 @@ export function emptySong(id: string, title = "Untitled"): SongDoc {
     schemaVersion: SCHEMA_VERSION,
     id,
     rev: 0,
-    meta: { title, bpm: 120, timeSig: [4, 4] },
+    meta: { title, bpm: 120, masterVolume: 0, timeSig: [4, 4] },
     tracks: {},
     trackOrder: [],
     patterns: {},

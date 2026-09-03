@@ -71,6 +71,10 @@ export class AudioEngine implements EngineLike {
     Tone.getTransport().bpm.value = bpm;
   }
 
+  setMasterVolume(db: number): void {
+    if (this.graph) this.graph.master.volume.value = db;
+  }
+
   addTrack(track: Track, doc: SongDoc): void {
     if (!this.graph) return;
     this.graph.tracks.set(track.id, buildTrackNodes(track, this.graph, sampleUrlFor(track, doc)));

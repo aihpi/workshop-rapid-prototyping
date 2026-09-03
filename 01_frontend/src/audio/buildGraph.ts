@@ -15,7 +15,7 @@ import type { Voice } from "./instruments.ts";
  *   voice -> channel (volume, pan, mute, solo) -> master
  *                  -> reverbSend -> reverb -> master
  *                  -> delaySend  -> delay  -> master
- *   master: compressor -> limiter -> destination
+ *   master: volume -> compressor -> limiter -> destination
  */
 export type TrackNodes = {
   voice: Voice;
@@ -25,7 +25,9 @@ export type TrackNodes = {
 };
 
 export type Graph = {
-  master: Tone.Compressor;
+  /** Where every channel and both effect returns land. */
+  master: Tone.Volume;
+  compressor: Tone.Compressor;
   reverb: Tone.Reverb;
   delay: Tone.FeedbackDelay;
   tracks: Map<string, TrackNodes>;
@@ -36,12 +38,14 @@ export type Graph = {
 
 export function buildGraph(doc: SongDoc): Graph {
   const limiter = new Tone.Limiter(-1).connect(Tone.getDestination());
-  const master = new Tone.Compressor({ threshold: -12, ratio: 3, attack: 0.005, release: 0.1 }).connect(limiter);
+  const compressor = new Tone.Compressor({ threshold: -12, ratio: 3, attack: 0.005, release: 0.1 }).connect(limiter);
+  const master = new Tone.Volume(doc.meta.masterVolume).connect(compressor);
   const reverb = new Tone.Reverb({ decay: 2.4, preDelay: 0.02, wet: 1 }).connect(master);
   const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.35, wet: 1 }).connect(master);
 
   const graph: Graph = {
     master,
+    compressor,
     reverb,
     delay,
     tracks: new Map(),
@@ -52,6 +56,7 @@ export function buildGraph(doc: SongDoc): Graph {
       reverb.dispose();
       delay.dispose();
       master.dispose();
+      compressor.dispose();
       limiter.dispose();
     },
   };
@@ -75,7 +80,7 @@ export function buildTrackNodes(track: Track, graph: Graph, sampleUrl?: string):
   channel.connect(reverbSend);
   channel.connect(delaySend);
 
-  const voice = createVoice(track.instrument, sampleUrl);
+  const voice = createVoice(track.instrument, sampleUrl, track.kind);
   voice.output.connect(channel);
   return { voice, channel, reverbSend, delaySend };
 }
@@ -92,7 +97,7 @@ export function applyMix(nodes: TrackNodes, mix: Mix): void {
 /** Swap the voice and keep the channel, so the mixer position is undisturbed. */
 export function replaceVoice(nodes: TrackNodes, track: Track, sampleUrl?: string): void {
   nodes.voice.dispose();
-  nodes.voice = createVoice(track.instrument, sampleUrl);
+  nodes.voice = createVoice(track.instrument, sampleUrl, track.kind);
   nodes.voice.output.connect(nodes.channel);
 }
 

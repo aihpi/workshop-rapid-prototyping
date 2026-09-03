@@ -13,6 +13,7 @@ export interface EngineLike {
   syncClip(clip: Clip, pattern: Pattern): void;
   removeClip(clipId: string): void;
   setBpm(bpm: number): void;
+  setMasterVolume(db: number): void;
 }
 
 /**
@@ -29,6 +30,7 @@ export function reconcile(prev: SongDoc | null, next: SongDoc, engine: EngineLik
   if (prev === next) return;
 
   if (prev?.meta.bpm !== next.meta.bpm) engine.setBpm(next.meta.bpm);
+  if (prev?.meta.masterVolume !== next.meta.masterVolume) engine.setMasterVolume(next.meta.masterVolume);
 
   const samplesChanged = prev !== null && prev.samples !== next.samples;
 

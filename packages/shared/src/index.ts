@@ -1,4 +1,5 @@
 export * from "./colour.ts";
+export * from "./demoSong.ts";
 export * from "./factory.ts";
 export * from "./ids.ts";
 export * from "./migrate.ts";

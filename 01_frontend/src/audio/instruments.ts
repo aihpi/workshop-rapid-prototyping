@@ -218,18 +218,25 @@ class PolyVoice implements Voice {
 
 // ------------------------------------------------------------------ sampler
 
-/** One recorded sample, pitched across the keyboard by Tone.Sampler. */
+/**
+ * One recorded sample. On a pitched track Tone.Sampler repitches it across the
+ * keyboard from C4; on a drum track every lane plays it as recorded, because a
+ * GM drum number is a lane, not a pitch.
+ */
 class SamplerVoice implements Voice {
   readonly output = new Tone.Gain(1);
   private readonly sampler: Tone.Sampler;
 
-  constructor(url: string) {
+  constructor(
+    url: string,
+    private readonly fixedPitch: boolean,
+  ) {
     this.sampler = new Tone.Sampler({ urls: { C4: url }, attack: 0, release: 0.3 }).connect(this.output);
   }
 
   trigger(pitch: number, time: number, velocity: number, durationSec: number): void {
     if (!this.sampler.loaded) return;
-    this.sampler.triggerAttackRelease(hz(pitch), durationSec, time, velocity);
+    this.sampler.triggerAttackRelease(hz(this.fixedPitch ? 60 : pitch), Math.max(durationSec, 0.25), time, velocity);
   }
 
   set(params: Record<string, number>): void {
@@ -255,7 +262,7 @@ class SilentVoice implements Voice {
 
 // ------------------------------------------------------------------ factory
 
-export function createVoice(instrument: Instrument, sampleUrl?: string): Voice {
+export function createVoice(instrument: Instrument, sampleUrl?: string, trackKind: "drum" | "pitched" = "pitched"): Voice {
   let voice: Voice;
   switch (instrument.kind) {
     case "kit":
@@ -271,7 +278,7 @@ export function createVoice(instrument: Instrument, sampleUrl?: string): Voice {
       voice = new PolyVoice();
       break;
     case "sampler":
-      voice = sampleUrl ? new SamplerVoice(sampleUrl) : new SilentVoice();
+      voice = sampleUrl ? new SamplerVoice(sampleUrl, trackKind === "drum") : new SilentVoice();
       break;
   }
   voice.set(resolvedParams(instrument));

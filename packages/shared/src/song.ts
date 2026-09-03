@@ -93,6 +93,8 @@ export const SampleRefSchema = z.object({
 export const SongMetaSchema = z.object({
   title: z.string(),
   bpm: z.number().min(20).max(300),
+  /** Master fader, decibels. */
+  masterVolume: z.number().min(-60).max(6),
   timeSig: z.tuple([z.number().int().min(1).max(16), z.union([z.literal(4), z.literal(8)])]),
 });
 

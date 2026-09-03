@@ -88,6 +88,35 @@ describe("song store", () => {
   });
 });
 
+describe("save tracking", () => {
+  it("edits, undo and redo all mark the document dirty; load and a landed save clear it", () => {
+    expect(song().dirty).toBe(false);
+    song().apply("Move clip", (d) => ops.moveClip(d, "c1", BAR));
+    expect(song().dirty).toBe(true);
+    song().markSaved(3, song().editCount);
+    expect(song().dirty).toBe(false);
+    expect(song().rev).toBe(3);
+    song().undo();
+    expect(song().dirty).toBe(true);
+  });
+
+  it("a save that landed while more edits happened does not clear dirty", () => {
+    song().apply("A", (d) => ops.moveClip(d, "c1", BAR));
+    const inflight = song().editCount;
+    song().apply("B", (d) => ops.moveClip(d, "c1", 2 * BAR));
+    song().markSaved(1, inflight);
+    expect(song().dirty).toBe(true);
+    expect(song().rev).toBe(1);
+  });
+
+  it("undo never rewinds the server rev", () => {
+    song().load(fixture(), 7);
+    song().apply("Move clip", (d) => ops.moveClip(d, "c1", BAR));
+    song().undo();
+    expect(song().rev).toBe(7);
+  });
+});
+
 describe("ui store", () => {
   it("the editing pattern is derived through the clip, so undo cannot strand it", () => {
     ui().setEditingClip("c2");
