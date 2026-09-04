@@ -40,6 +40,9 @@ Run typecheck and tests before declaring a step done, and show the output.
   `nativeEvent.currentTarget` is the root container, not the element.
 - Behaviour that a unit test cannot reach (pointer capture, double-click, downloads) is
   checked by driving headless Chrome through the DevTools protocol or Playwright.
+- AI output reaches the document only through `applyAiOps` inside one `apply()`, so a
+  reply is one undo step. The vocabulary lives in `packages/shared/src/aiOps.ts`.
+- The gateway key stays in the API process. The frontend never sees `OPENAI_API_KEY`.
 
 ## Style
 

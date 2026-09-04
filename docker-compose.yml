@@ -1,9 +1,14 @@
 # HPI Studio. One command brings up the database, applies migrations, starts the
 # API and serves the built frontend through nginx.
 #
-#   docker compose up --build        everything, then open http://localhost:8080
+#   docker compose pull && docker compose up --no-build
+#                                    prebuilt images from GHCR, then open http://localhost:8080
+#   docker compose up --build        the same, built from this checkout
 #   docker compose up db             just Postgres, for `npm run dev:api` and
 #                                    `npm run dev:web` on the host
+#
+# The AI assistant reads OPENAI_API_KEY and friends from a root `.env`
+# (copy .env.example); without one it reports itself as unconfigured.
 
 services:
   db:
@@ -23,6 +28,7 @@ services:
       retries: 10
 
   migrate:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-api:latest
     build:
       context: .
       dockerfile: 02_backend/Dockerfile
@@ -34,6 +40,7 @@ services:
         condition: service_healthy
 
   api:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-api:latest
     build:
       context: .
       dockerfile: 02_backend/Dockerfile
@@ -41,6 +48,9 @@ services:
       DATABASE_URL: postgres://studio:studio@db:5432/studio
       SAMPLES_DIR: /data/samples
       PORT: "3000"
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - samples:/data/samples
     depends_on:
@@ -50,6 +60,7 @@ services:
       - "3000"
 
   web:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-web:latest
     build:
       context: .
       dockerfile: 01_frontend/Dockerfile
