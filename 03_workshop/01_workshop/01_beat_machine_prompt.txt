@@ -1,0 +1,72 @@
+Build me a drum machine as a single, self-contained HTML file.
+
+Hard requirements, please follow all of them:
+
+- Exactly one .html file. All CSS in a <style> block, all JavaScript in a <script>
+  block, both inside that same file. Do not split the answer across several files.
+- No libraries, no frameworks, no CDN links, no npm, no build step. Plain HTML, CSS
+  and JavaScript only.
+- The file must work when I double-click it and it opens from disk as file://...,
+  so it must not fetch anything over the network.
+- Generate every drum sound in code with the Web Audio API, using oscillators,
+  filters, noise buffers and gain envelopes. Do not reference any .wav, .mp3 or
+  other audio sample files: I do not have any on my machine.
+- Give me the complete file in one code block, ready to save and open.
+
+What it should do:
+
+- A step sequencer with 16 steps and these eight instruments, one row each:
+  bass drum, kick, snare, clap, closed hi-hat, open hi-hat, low tom, high tom.
+- Each cell in the grid is a button I can click to switch that step on or off.
+  An active step is clearly highlighted.
+- A play/stop button that starts and stops the sequence.
+- A loop toggle. When loop is on, the pattern repeats; when it is off, it plays
+  through once and stops.
+- A tempo slider from 60 to 200 BPM, with the current value shown as a number.
+- Per instrument: a mute button and a volume slider.
+- A "clear all" button that empties the grid.
+- While playing, highlight the step that is currently sounding, so I can follow
+  the playhead across the grid.
+- Load with a simple pattern already programmed in, so I hear something the moment
+  I press play.
+
+On timing and sound quality:
+
+- Schedule the notes with the Web Audio clock (AudioContext.currentTime) using a
+  lookahead scheduler. Do not drive the sequencer with setInterval alone, the
+  timing will drift and sound sloppy.
+- Create or resume the AudioContext on the first click, because browsers block
+  audio until the user interacts with the page.
+- Make the eight sounds actually distinguishable from each other. The bass drum
+  should be deeper and longer than the kick, the closed hi-hat short and the open
+  hi-hat ringing, the two toms clearly different in pitch.
+
+On performance, this matters more than it looks:
+
+- Every note creates new Web Audio nodes. Calling stop() on an oscillator only
+  silences it, it does not remove it from the audio graph. A gain node or filter
+  that is still connected to the output keeps being processed forever, even after
+  the sound has ended. If you never disconnect anything, the graph grows by a few
+  nodes per sixteenth note and the page slowly grinds to a halt after a few
+  minutes of playing. Do not let that happen.
+- So: whenever you create nodes for a single note, tear them down when that note
+  is finished. Use the source node's ended event and disconnect the whole little
+  chain there, something like
+  source.onended = () => { source.disconnect(); gain.disconnect(); };
+  Do this for every voice, including the ones that fire several bursts, like the
+  clap and the hi-hats.
+- Anything that can be built once should be built once and reused: the noise
+  buffer, any wavetable, any lookup curve. Do not regenerate them per note.
+- For the playhead, only change the cells that actually changed. Remove the
+  highlight from the previous step and add it to the new one. Do not loop over the
+  whole grid on every animation frame.
+- Do not run a requestAnimationFrame loop while the sequencer is stopped. Start it
+  on play, and cancel it with cancelAnimationFrame on stop.
+- Suspend the AudioContext when the sequencer is stopped and resume it on play, so
+  the browser is not rendering audio for a silent page.
+
+On the look:
+
+- A dark interface, comfortable to look at, with the grid as the centrepiece.
+- Group the steps visually in fours, so the beats are easy to count.
+- Sensible sizes: I want to hit the cells with a mouse without aiming carefully.

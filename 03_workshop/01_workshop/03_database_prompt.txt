@@ -1,0 +1,81 @@
+Here is the drum machine HTML file you produced for me. Extend it so that I can
+save, load and share what I have programmed.
+
+Paste your current file below this line before you send the prompt:
+
+---
+
+Keep all the existing rules: still exactly one self-contained .html file, no
+libraries, no CDN, no build step, all sounds synthesised with the Web Audio API,
+no audio sample files, and it must run when opened from disk as file://...
+
+Keep the performance rules too. Per-note nodes are still disconnected when the
+note ends, effect chains and impulse responses are still built once, and slider
+handlers still only set AudioParam values.
+
+Important: there is no server and no backend here, so do not write any Node,
+Python or PHP code, and do not use fetch to talk to an API. The browser's own
+localStorage is the database for now.
+
+Add three things:
+
+1. Built-in presets
+
+   A dropdown with at least these five presets, each of which loads both the step
+   pattern and the sound settings:
+
+   - Trap: half-time feel, rolling hi-hats with some 1/32 rolls, sparse 808-style
+     bass drum, snare or clap on the third beat, around 70 BPM felt as 140.
+   - Trip hop: slow and heavy, around 85 BPM, lazy swung kick and snare, dusty
+     filtered hi-hats, lots of reverb.
+   - Drum and bass: around 174 BPM, a broken two-step snare pattern, busy ghost
+     notes, tight kick.
+   - House: around 124 BPM, four-to-the-floor kick, open hi-hat on the offbeats,
+     clap on beats two and four.
+   - Boom bap: around 90 BPM, hard kick and snare backbeat, straight eighth-note
+     hi-hats, slightly behind the beat.
+
+   Loading a preset replaces the current state. Warn me before overwriting
+   unsaved changes.
+
+2. Saved patterns in localStorage
+
+   - A text field for a name and a "save" button that stores the complete state
+     under that name: the grid, the tempo, the loop setting, and every sound
+     control for every instrument.
+   - A list of saved patterns with load and delete buttons, which survives closing
+     and reopening the browser.
+   - Saving under a name that already exists asks me to confirm the overwrite.
+
+3. Export and import as a file
+
+   - An "export" button that serialises the complete state to JSON and downloads
+     it as a .json file, using a Blob, an object URL and a temporary <a download>
+     element.
+   - An "import" button using <input type="file"> that reads a .json file back and
+     restores the state from it.
+   - Put a version field in the JSON, and check it on import. If the file is not
+     valid JSON or is missing fields, show me a readable error instead of breaking
+     the page.
+
+On performance, because loading state is where this usually breaks:
+
+- Loading a preset or a saved pattern must reuse the audio graph that already
+  exists. Do not create a second AudioContext and do not build a second set of
+  effect chains on top of the old ones. If you genuinely have to rebuild a chain,
+  disconnect the old one first. Getting this wrong doubles the CPU cost every
+  single time I load a preset, and after five presets the page is unusable.
+- Loading state should set the values on the existing AudioParams and update the
+  slider positions, nothing more.
+- Only write to localStorage when I press save. Do not autosave on every cell
+  click or every slider movement. localStorage writes are synchronous and block
+  the main thread, which will make the grid feel sticky while the music plays.
+- Serialise with JSON.stringify at save time. Do not keep a running string of the
+  state in memory that you update on every change.
+- After the export download, release the object URL with URL.revokeObjectURL, and
+  remove the temporary link element. Otherwise every export holds its blob in
+  memory until the page is closed.
+- Reading a file on import is asynchronous. Do not block the interface while it
+  happens, and do not stop the sequencer for it.
+
+Give me the complete updated file in one code block.
