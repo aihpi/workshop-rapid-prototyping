@@ -1,46 +1,17 @@
-FROM nvidia/cuda:11.8.0-base-ubuntu20.04
-
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=Etc/UTC
-
+FROM node:22-alpine
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    build-essential \
-    wget \
-    curl \
-    git \
-    ca-certificates \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxrender1 \
-    libxext6 \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y python3.10 python3.10-venv python3.10-dev python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+# Copy every workspace manifest before `npm ci`, or Docker cannot cache the
+# install layer and reinstalls on every source change.
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/shared/package.json packages/shared/
+COPY 01_frontend/package.json 01_frontend/
+COPY 02_backend/package.json 02_backend/
+RUN npm ci --omit=dev -w packages/shared -w 02_backend
 
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1
-RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+COPY packages/shared packages/shared
+COPY 02_backend 02_backend
 
-RUN pip install --upgrade pip
-
-RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-RUN pip install --no-cache-dir \
-    huggingface_hub==0.19.4 \
-    transformers==4.35.2 \
-    diffusers==0.23.1 \
-    accelerate==0.23.0
-
-RUN pip install --no-cache-dir \
-    opencv-python-headless \
-    safetensors==0.3.2
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["npm", "run", "start", "-w", "02_backend"]

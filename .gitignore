@@ -197,3 +197,14 @@ notes_*.txt
 
 # Workshop scratch space, not part of the material
 tmp/
+
+# Node
+node_modules/
+*.tsbuildinfo
+.vite/
+coverage/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example

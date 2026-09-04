@@ -1,0 +1,27 @@
+{
+  "name": "hpi-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A full-stack DAW built to show what planned, AI-assisted development looks like next to a vibe-coded prototype.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/shared",
+    "01_frontend",
+    "02_backend"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w 01_frontend",
+    "dev:api": "npm run dev -w 02_backend",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "migrate": "npm run migrate -w 02_backend",
+    "e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

@@ -1,46 +1,76 @@
-services:
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000/api
-    depends_on:
-      - backend
-    volumes:
-      - ./frontend:/app 
-      - /app/node_modules 
+# HPI Studio. One command brings up the database, applies migrations, starts the
+# API and serves the built frontend through nginx.
+#
+#   docker compose pull && docker compose up --no-build
+#                                    prebuilt images from GHCR, then open http://localhost:8080
+#   docker compose up --build        the same, built from this checkout
+#   docker compose up db             just Postgres, for `npm run dev:api` and
+#                                    `npm run dev:web` on the host
+#
+# The AI assistant reads OPENAI_API_KEY and friends from a root `.env`
+# (copy .env.example); without one it reports itself as unconfigured.
 
-  backend:
-    build:
-      context: ./backend
-    ports:
-      - "8000:8000"
+services:
+  db:
+    image: postgres:16-alpine
     environment:
-      - DEVICE=cuda
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DEBUG_MODE=true
-      - DEFAULT_MODEL_ID=t2i_adapter_sdxl  
-      - NUM_INFERENCE_STEPS=40  
-      - GUIDANCE_SCALE=7.5
-      - OUTPUT_IMAGE_SIZE=512
-      - FRONTEND_URL=http://localhost:3000
-      - USE_PIDINET_PREPROCESSING=true  
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: studio
+      POSTGRES_DB: studio
+    ports:
+      - "5432:5432"
     volumes:
-      - ./backend:/app  
-      - ./backend/uploads:/app/uploads
-      - ./backend/outputs:/app/outputs
-      - ./backend/preprocessed:/app/preprocessed  
-      - huggingface_cache:/root/.cache/huggingface
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U studio -d studio"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-api:latest
+    build:
+      context: .
+      dockerfile: 02_backend/Dockerfile
+    command: ["npm", "run", "migrate", "-w", "02_backend"]
+    environment:
+      DATABASE_URL: postgres://studio:studio@db:5432/studio
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-api:latest
+    build:
+      context: .
+      dockerfile: 02_backend/Dockerfile
+    environment:
+      DATABASE_URL: postgres://studio:studio@db:5432/studio
+      SAMPLES_DIR: /data/samples
+      PORT: "3000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - samples:/data/samples
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "3000"
+
+  web:
+    image: ghcr.io/aihpi/workshop-rapid-prototyping-web:latest
+    build:
+      context: .
+      dockerfile: 01_frontend/Dockerfile
+    ports:
+      - "8080:80"
+    volumes:
+      - samples:/data/samples:ro
+    depends_on:
+      - api
 
 volumes:
-  huggingface_cache:
+  pgdata:
+  samples:
