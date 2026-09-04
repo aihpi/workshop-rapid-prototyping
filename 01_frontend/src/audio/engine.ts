@@ -4,7 +4,7 @@ import * as Tone from "tone";
 
 import { applyMix, buildGraph, buildTrackNodes, disposeTrackNodes, replaceVoice, sampleUrlFor } from "./buildGraph.ts";
 import type { Graph } from "./buildGraph.ts";
-import { resolvedParams } from "./instrumentSpecs.ts";
+import { resolvedParams } from "@hpi/shared";
 import { createPart } from "./parts.ts";
 import type { EngineLike } from "./reconcile.ts";
 import type { PatternEvent } from "./schedule.ts";

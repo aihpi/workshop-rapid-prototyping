@@ -2,7 +2,7 @@ import { DRUM_VOICES } from "@hpi/shared";
 import type { Instrument } from "@hpi/shared";
 import * as Tone from "tone";
 
-import { resolvedParams } from "./instrumentSpecs.ts";
+import { resolvedParams } from "@hpi/shared";
 
 /**
  * One playable instrument behind a uniform interface, so the scheduler and the

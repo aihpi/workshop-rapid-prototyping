@@ -1,4 +1,4 @@
-import type { Instrument, InstrumentKind } from "@hpi/shared";
+import type { Instrument, InstrumentKind } from "./song.ts";
 
 /**
  * What each instrument exposes to the sound-design panel, and the defaults the
