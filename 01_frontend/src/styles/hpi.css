@@ -733,9 +733,17 @@ body.dragging * {
   font-size: 0.75rem;
 }
 
+/* Inside a 132 px strip a three-column fader leaves the slider 8 px, and a
+   range input's intrinsic width then overflows under the next strip. Label
+   and value share a row; the slider gets the full width below. */
 .strip .fader:not(.vertical) {
-  grid-template-columns: 3rem 1fr 2.6rem;
-  gap: 0.25rem;
+  grid-template-columns: 1fr auto;
+  gap: 0.1rem 0.25rem;
+}
+
+.strip .fader:not(.vertical) input[type="range"] {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
 .fader.vertical {

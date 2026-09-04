@@ -53,3 +53,22 @@ test("load, play, edit, record, render", async ({ page }) => {
   expect(bytes.subarray(8, 12).toString("ascii")).toBe("WAVE");
   expect(bytes.length).toBeGreaterThan(300_000);
 });
+
+// Regression for the mixer strips: the horizontal faders used to overflow
+// under the next strip and were neither visible nor hit-testable.
+test("mixer pan, reverb and delay are adjustable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Mixer", exact: true }).click();
+  const strip = page.locator(".strip:not(.master)").first();
+  for (const name of ["Pan", "Reverb", "Delay"]) {
+    const slider = strip.getByRole("slider", { name });
+    const box = (await slider.boundingBox())!;
+    expect(box.width, `${name} slider width`).toBeGreaterThan(80);
+    const stripBox = (await strip.boundingBox())!;
+    expect(box.x + box.width).toBeLessThanOrEqual(stripBox.x + stripBox.width + 1);
+  }
+  const pan = strip.getByRole("slider", { name: "Pan" });
+  const before = await strip.locator(".fader-value").first().textContent();
+  await pan.fill("-0.8");
+  await expect(strip.locator(".fader-value").first()).not.toHaveText(before!);
+});
