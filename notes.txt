@@ -1,0 +1,6 @@
+uv add instead of uv pip install
+
+Language
+British English
+No emoticons
+No em-dash
