@@ -1,6 +1,7 @@
 import { PPQ, ticksPerBar } from "@hpi/shared";
 import { useEffect, useState } from "react";
 
+import { AiDrawer } from "./ai/AiDrawer.tsx";
 import { engine, useSixteenth, withAudio } from "./audio/index.ts";
 import { PatternEditor } from "./editors/EditorPane.tsx";
 import { Mixer } from "./mixer/Mixer.tsx";
@@ -23,6 +24,8 @@ export function App() {
   const exporting = useUiStore((s) => s.exporting);
   const helpOpen = useUiStore((s) => s.helpOpen);
   const toggleHelp = useUiStore((s) => s.toggleHelp);
+  const aiOpen = useUiStore((s) => s.aiOpen);
+  const toggleAi = useUiStore((s) => s.toggleAi);
   const [health, setHealth] = useState<Health | null>(null);
 
   useEffect(() => {
@@ -65,6 +68,9 @@ export function App() {
           <button className="button ghost" onClick={() => void actions.exportWav()} disabled={exporting} title="Render the whole song to a WAV file (Ctrl E)">
             Export WAV
           </button>
+          <button className={`button ghost ${aiOpen ? "active" : ""}`} onClick={toggleAi} title="AI assistant (Ctrl K)">
+            AI
+          </button>
           <button className="button ghost" onClick={toggleHelp} title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
             ?
           </button>
@@ -74,8 +80,13 @@ export function App() {
         </span>
         <img className="partner-logo" src="/aisc-logo.png" alt="AI Service Centre Berlin-Brandenburg" />
       </header>
-      <Timeline />
-      <BottomPane />
+      <div className="body">
+        <div className="workspace">
+          <Timeline />
+          <BottomPane />
+        </div>
+        <AiDrawer />
+      </div>
       {exporting && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Rendering">
           <div className="modal">

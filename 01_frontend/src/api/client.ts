@@ -1,8 +1,12 @@
 import { migrateSong } from "@hpi/shared";
-import type { SongDoc } from "@hpi/shared";
+import type { AiOp, SongDoc } from "@hpi/shared";
 
 export type SongSummary = { id: string; title: string; bpm: number; rev: number; updatedAt: string };
 export type UploadedSample = { id: string; name: string; url: string; bytes: number; durationSec: number };
+export type AiModels = { configured: boolean; models: string[]; default: string };
+export type AiHistory = { role: "user" | "assistant"; content: string }[];
+export type AiRejected = { index: number; op: unknown; reason: string };
+export type AiReply = { message: string; ops: AiOp[]; rejected: AiRejected[]; model: string; latencyMs: number; repaired: boolean };
 
 export class ApiError extends Error {
   constructor(
@@ -49,4 +53,9 @@ export const api = {
   },
 
   deleteSample: (id: string) => request<void>(`/api/samples/${id}`, { method: "DELETE" }),
+
+  aiModels: () => request<AiModels>("/api/ai/models"),
+
+  /** The server validates against the document sent; the client applies the ops it gets back. */
+  aiChat: (messages: AiHistory, doc: SongDoc, model: string) => request<AiReply>("/api/ai/chat", { method: "POST", ...json({ messages, doc, model }) }),
 };

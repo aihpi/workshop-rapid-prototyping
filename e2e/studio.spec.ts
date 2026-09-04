@@ -72,3 +72,17 @@ test("mixer pan, reverb and delay are adjustable", async ({ page }) => {
   await pan.fill("-0.8");
   await expect(strip.locator(".fader-value").first()).not.toHaveText(before!);
 });
+
+// The dev server has no API behind it, so the drawer must explain how to
+// configure the assistant instead of failing silently.
+test("AI drawer opens and explains the missing configuration", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("complementary", { name: "AI assistant" })).toBeHidden();
+  await page.keyboard.press("Control+k");
+  const drawer = page.getByRole("complementary", { name: "AI assistant" });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText(/AI is not configured/)).toBeVisible();
+  await expect(drawer.getByRole("textbox", { name: "Message" })).toBeDisabled();
+  await page.getByRole("button", { name: "Close assistant" }).click();
+  await expect(drawer).toBeHidden();
+});

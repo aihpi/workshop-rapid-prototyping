@@ -23,6 +23,7 @@ export const SHORTCUTS: readonly [keys: string, does: string][] = [
   ["Ctrl Z / Ctrl Shift Z", "Undo / redo"],
   ["Ctrl S", "Save now"],
   ["Ctrl E", "Export WAV"],
+  ["Ctrl K", "AI assistant"],
   ["+ −", "Zoom"],
   ["?", "This list"],
 ];
@@ -70,6 +71,9 @@ export function useShortcuts(): void {
       } else if (mod && e.key.toLowerCase() === "e") {
         e.preventDefault();
         void actions.exportWav();
+      } else if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        ui.toggleAi();
       } else if (e.key === "?") {
         ui.toggleHelp();
       }

@@ -33,6 +33,8 @@ export type UiState = {
   songList: readonly SongSummary[];
   exporting: boolean;
   helpOpen: boolean;
+  /** The assistant drawer beside the timeline. */
+  aiOpen: boolean;
 
   select(ids: readonly string[]): void;
   toggleSelected(id: string): void;
@@ -49,6 +51,7 @@ export type UiState = {
   setSongList(list: readonly SongSummary[]): void;
   setExporting(on: boolean): void;
   toggleHelp(): void;
+  toggleAi(): void;
   /** Drop references to clips that no longer exist in the document. */
   pruneAgainst(doc: SongDoc): void;
 };
@@ -68,6 +71,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   songList: [],
   exporting: false,
   helpOpen: false,
+  aiOpen: false,
 
   select: (ids) => set({ selectedClipIds: [...ids] }),
   toggleSelected: (id) => {
@@ -89,6 +93,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setSongList: (songList) => set({ songList }),
   setExporting: (exporting) => set({ exporting }),
   toggleHelp: () => set({ helpOpen: !get().helpOpen }),
+  toggleAi: () => set({ aiOpen: !get().aiOpen }),
   pruneAgainst: (doc) => {
     const { selectedClipIds, editingClipId, soundTrackId } = get();
     const survivors = selectedClipIds.filter((id) => doc.clips[id]);
