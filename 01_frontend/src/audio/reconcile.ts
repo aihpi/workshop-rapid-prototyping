@@ -1,4 +1,4 @@
-import type { Clip, Pattern, SongDoc, Track } from "@hpi/shared";
+import type { Clip, Effect, Pattern, SongDoc, TimeSig, Track } from "@hpi/shared";
 
 /**
  * What the reconciler needs from an engine. The real one wraps Tone; tests use
@@ -10,10 +10,23 @@ export interface EngineLike {
   setMix(track: Track): void;
   setInstrumentParams(track: Track): void;
   rebuildInstrument(track: Track, doc: SongDoc): void;
+  rebuildEffects(track: Track): void;
+  setEffectParams(track: Track, effect: Effect): void;
+  setAutomation(track: Track): void;
   syncClip(clip: Clip, pattern: Pattern): void;
   removeClip(clipId: string): void;
   setBpm(bpm: number): void;
+  setTimeSig(timeSig: TimeSig): void;
   setMasterVolume(db: number): void;
+}
+
+/** True when the chain must be rebuilt: something was added, removed, reordered or bypassed. */
+export function effectsStructureChanged(before: readonly Effect[], after: readonly Effect[]): boolean {
+  if (before.length !== after.length) return true;
+  return before.some((b, i) => {
+    const a = after[i]!;
+    return b.id !== a.id || b.kind !== a.kind || b.enabled !== a.enabled;
+  });
 }
 
 /**
@@ -30,6 +43,7 @@ export function reconcile(prev: SongDoc | null, next: SongDoc, engine: EngineLik
   if (prev === next) return;
 
   if (prev?.meta.bpm !== next.meta.bpm) engine.setBpm(next.meta.bpm);
+  if (prev?.meta.timeSig !== next.meta.timeSig) engine.setTimeSig(next.meta.timeSig);
   if (prev?.meta.masterVolume !== next.meta.masterVolume) engine.setMasterVolume(next.meta.masterVolume);
 
   const samplesChanged = prev !== null && prev.samples !== next.samples;
@@ -56,6 +70,15 @@ export function reconcile(prev: SongDoc | null, next: SongDoc, engine: EngineLik
         engine.setInstrumentParams(after);
       }
       if (before.mix !== after.mix) engine.setMix(after);
+      if (before.effects !== after.effects) {
+        if (effectsStructureChanged(before.effects, after.effects)) engine.rebuildEffects(after);
+        else {
+          after.effects.forEach((effect, i) => {
+            if (before.effects[i] !== effect) engine.setEffectParams(after, effect);
+          });
+        }
+      }
+      if (before.automation !== after.automation) engine.setAutomation(after);
     }
     for (const id of Object.keys(prev?.tracks ?? {})) {
       if (!next.tracks[id]) engine.removeTrack(id);

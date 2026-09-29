@@ -1,6 +1,6 @@
 import type { Clip, TrackKind } from "@hpi/shared";
 
-import { DRAG_THRESHOLD_PX, dragTargetTick, resizeTargetTicks, ROW_H, tickToPx } from "./geometry.ts";
+import { CLIP_PAD, DRAG_THRESHOLD_PX, dragTargetTick, resizeTargetTicks, tickToPx } from "./geometry.ts";
 import type { ClipMove } from "./actions.ts";
 
 /**
@@ -18,6 +18,10 @@ export type GestureEnv = {
   snap: number;
   trackOrder: readonly string[];
   trackKind: (trackId: string) => TrackKind | undefined;
+  /** Pixel top of a track's row; rows differ in height once automation lanes open. */
+  rowTop: (trackId: string) => number;
+  /** The track whose row (clips or lane) contains a y inside `lanes`. */
+  trackAtY: (y: number) => string | undefined;
   clip: (clipId: string) => Clip | undefined;
   /** Every clip that should move together with the pressed one. */
   group: (clipId: string) => readonly string[];
@@ -43,6 +47,7 @@ export function startClipGesture(e: PointerEvent, captureEl: HTMLElement, clipId
   const zoom = { pxPerBar: env.pxPerBar, ticksPerBar: env.ticksPerBar, snap: env.snap };
   const startX = e.clientX;
   const startY = e.clientY;
+  const lanesTop = env.lanes.getBoundingClientRect().top;
   const ids = mode === "move" ? env.group(clipId) : [clipId];
   const origins = ids.map((id) => env.clip(id)).filter((c): c is Clip => c !== undefined);
   const rowOf = (trackId: string) => env.trackOrder.indexOf(trackId);
@@ -66,7 +71,13 @@ export function startClipGesture(e: PointerEvent, captureEl: HTMLElement, clipId
       return;
     }
     const dx = tickToPx(deltaTicks, env.pxPerBar, env.ticksPerBar);
-    for (const el of elements) if (el) el.style.transform = `translate(${dx}px, ${rowDelta * ROW_H}px)`;
+    elements.forEach((el, i) => {
+      if (!el) return;
+      const origin = origins[i]!;
+      const dest = env.trackOrder[rowOf(origin.trackId) + rowDelta] ?? origin.trackId;
+      const x = tickToPx(origin.startTick + deltaTicks, env.pxPerBar, env.ticksPerBar);
+      el.style.transform = `translate(${x}px, ${env.rowTop(dest) + CLIP_PAD}px)`;
+    });
   };
 
   const rowDeltaAllowed = (delta: number): boolean =>
@@ -92,7 +103,9 @@ export function startClipGesture(e: PointerEvent, captureEl: HTMLElement, clipId
       deltaTicks = snappedPrimary - primary.startTick;
       const minStart = Math.min(...origins.map((c) => c.startTick));
       if (minStart + deltaTicks < 0) deltaTicks = -minStart;
-      const wanted = Math.round(dy / ROW_H);
+      // Rows are not uniform once a lane is open, so ask the layout which track is under the pointer.
+      const under = env.trackAtY(ev.clientY - lanesTop);
+      const wanted = under === undefined ? 0 : rowOf(under) - rowOf(primary.trackId);
       rowDelta = rowDeltaAllowed(wanted) ? wanted : 0;
     }
     if (!frame) frame = requestAnimationFrame(paint);

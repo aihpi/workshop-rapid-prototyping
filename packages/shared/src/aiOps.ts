@@ -7,15 +7,17 @@
 
 import { z } from "zod";
 
+import { AUTOMATION_RANGES } from "./automation.ts";
 import { swatchForIndex } from "./colour.ts";
+import { EFFECT_SPECS, isChoiceSpec } from "./effectSpecs.ts";
 import { makeTrack } from "./factory.ts";
 import { INSTRUMENT_SPECS } from "./instrumentSpecs.ts";
-import { STEP_TICKS, ticksPerBar } from "./music.ts";
+import { PPQ, STEP_TICKS, ticksPerBar } from "./music.ts";
 import * as ops from "./ops.ts";
-import type { InstrumentKind, Note, Pattern, SongDoc } from "./song.ts";
-import { InstrumentKindSchema, TrackKindSchema } from "./song.ts";
+import type { EffectKind, InstrumentKind, Note, Pattern, SongDoc, Track } from "./song.ts";
+import { EffectKindSchema, InstrumentKindSchema, MIX_AUTOMATION_PARAMS, TrackKindSchema } from "./song.ts";
 
-export const AI_LIMITS = { ops: 40, newTracks: 8, notesPerPattern: 256, clipBars: 64 } as const;
+export const AI_LIMITS = { ops: 40, newTracks: 8, notesPerPattern: 256, clipBars: 64, effectsPerTrack: 6, automationPoints: 64 } as const;
 
 const slug = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, "ids are lowercase slugs");
 const ref = z.string().min(1);
@@ -25,6 +27,21 @@ const bars = z.number().int().min(1).max(AI_LIMITS.clipBars);
 const level = z.number();
 
 const AiInstrumentKind = InstrumentKindSchema.exclude(["sampler"]);
+
+/** Effect params are numbers except the filter type, which is a named choice. */
+const effectValue = z.union([z.number(), z.string()]);
+const effectParams = z.record(z.string(), effectValue);
+
+/** Quantise grids in note values; the model thinks in those, not in ticks. */
+const AiGrid = z.enum(["1/4", "1/8", "1/16"]);
+const GRID_TICKS: Record<z.infer<typeof AiGrid>, number> = { "1/4": PPQ, "1/8": PPQ / 2, "1/16": STEP_TICKS };
+
+export const AiAutomationPointSchema = z.object({
+  bar,
+  /** Sixteenth steps into the bar, default 0. */
+  step: z.number().int().min(0).optional(),
+  value: level,
+});
 
 export const AiNoteSchema = z.object({
   pitch: z.number().int().min(0).max(127),
@@ -72,6 +89,19 @@ export const AiOpSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("makeUnique"), clipId: ref, newPatternId: slug }),
   z.object({ op: z.literal("addSection"), id: slug, name, bar, bars }),
   z.object({ op: z.literal("renameSection"), sectionId: ref, name }),
+  z.object({ op: z.literal("addEffect"), trackId: ref, id: slug, kind: EffectKindSchema, params: effectParams.optional(), enabled: z.boolean().optional() }),
+  z.object({ op: z.literal("removeEffect"), trackId: ref, effectId: ref }),
+  z.object({ op: z.literal("setEffectParam"), trackId: ref, effectId: ref, key: z.string(), value: effectValue }),
+  z.object({ op: z.literal("setEffectEnabled"), trackId: ref, effectId: ref, enabled: z.boolean() }),
+  z.object({ op: z.literal("setTimeSig"), beats: z.number().int().min(1).max(16), unit: z.union([z.literal(4), z.literal(8)]) }),
+  z.object({
+    op: z.literal("setAutomation"),
+    trackId: ref,
+    param: z.enum(MIX_AUTOMATION_PARAMS),
+    /** Replaces the whole lane; an empty list clears it. */
+    points: z.array(AiAutomationPointSchema).max(AI_LIMITS.automationPoints),
+  }),
+  z.object({ op: z.literal("quantiseNotes"), patternId: ref, grid: AiGrid.optional(), strength: z.number().min(0).max(1).optional() }),
 ]);
 
 export type AiOp = z.infer<typeof AiOpSchema>;
@@ -103,6 +133,24 @@ function clampParams(kind: InstrumentKind, params: Record<string, number>): Reco
   return out;
 }
 
+/** The effect twin of `clampParams`; a choice param is validated rather than clamped. */
+function clampEffectParams(kind: EffectKind, params: Record<string, number | string>): Record<string, number | string> {
+  const specs = EFFECT_SPECS[kind];
+  const out: Record<string, number | string> = {};
+  for (const [key, value] of Object.entries(params)) {
+    const spec = specs.find((s) => s.key === key);
+    if (!spec) throw new Reject(`${kind} has no param "${key}" (has ${specs.map((s) => s.key).join(", ")})`);
+    if (isChoiceSpec(spec)) {
+      if (typeof value !== "string" || !spec.choices.includes(value)) throw new Reject(`${kind} ${key} must be one of ${spec.choices.join(", ")}`);
+      out[key] = value;
+    } else {
+      if (typeof value !== "number") throw new Reject(`${kind} ${key} takes a number`);
+      out[key] = clamp(value, spec.min, spec.max);
+    }
+  }
+  return out;
+}
+
 function toNotes(input: z.infer<typeof AiNoteSchema>[], lengthTicks: number, newId: () => string): Note[] {
   const out: Note[] = [];
   for (const n of input) {
@@ -126,14 +174,17 @@ export function applyAiOps(doc: SongDoc, batch: AiOp[], newId: () => string): Ai
     result.rejected = batch.map((op, index) => ({ index, op, reason: `batch has ${batch.length} ops, the limit is ${AI_LIMITS.ops}` }));
     return result;
   }
-  const BAR = ticksPerBar(doc.meta.timeSig);
+  // Read afresh per op: a setTimeSig earlier in the batch changes the bar length for the rest.
+  const BAR = () => ticksPerBar(doc.meta.timeSig);
   let newTracks = 0;
 
   const track = (id: string) => doc.tracks[id] ?? raise(`no track "${id}"`);
   const pattern = (id: string) => doc.patterns[id] ?? raise(`no pattern "${id}"`);
   const clip = (id: string) => doc.clips[id] ?? raise(`no clip "${id}"`);
+  const effect = (t: Track, id: string) => t.effects.find((e) => e.id === id) ?? raise(`track ${t.id} has no effect "${id}"`);
   const fresh = (id: string, kind: string) => {
-    if (doc.tracks[id] || doc.patterns[id] || doc.clips[id] || doc.sections.some((s) => s.id === id)) raise(`${kind} id "${id}" is already taken`);
+    const effectIds = Object.values(doc.tracks).some((t) => t.effects.some((e) => e.id === id));
+    if (doc.tracks[id] || doc.patterns[id] || doc.clips[id] || doc.sections.some((s) => s.id === id) || effectIds) raise(`${kind} id "${id}" is already taken`);
   };
 
   batch.forEach((op, index) => {
@@ -197,7 +248,7 @@ export function applyAiOps(doc: SongDoc, batch: AiOp[], newId: () => string): Ai
       }
       case "addPattern": {
         fresh(op.id, "pattern");
-        const lengthTicks = op.bars * BAR;
+        const lengthTicks = op.bars * BAR();
         const p: Pattern = { id: op.id, name: op.name, kind: op.kind, lengthTicks, notes: toNotes(op.notes, lengthTicks, newId) };
         return ops.addPattern(doc, p);
       }
@@ -219,11 +270,11 @@ export function applyAiOps(doc: SongDoc, batch: AiOp[], newId: () => string): Ai
         const t = track(op.trackId);
         const p = pattern(op.patternId);
         if (t.kind !== p.kind) raise(`pattern ${p.id} is ${p.kind} but track ${t.id} is ${t.kind}`);
-        return ops.addClip(doc, { id: op.id, trackId: t.id, patternId: p.id, startTick: op.bar * BAR, lengthTicks: op.bars * BAR, offsetTicks: 0 });
+        return ops.addClip(doc, { id: op.id, trackId: t.id, patternId: p.id, startTick: op.bar * BAR(), lengthTicks: op.bars * BAR(), offsetTicks: 0 });
       }
       case "resizeClip":
         clip(op.clipId);
-        return ops.resizeClip(doc, op.clipId, op.bars * BAR);
+        return ops.resizeClip(doc, op.clipId, op.bars * BAR());
       case "removeClip":
         clip(op.clipId);
         return ops.removeClip(doc, op.clipId);
@@ -233,11 +284,44 @@ export function applyAiOps(doc: SongDoc, batch: AiOp[], newId: () => string): Ai
         return ops.makeUnique(doc, op.clipId, op.newPatternId, newId);
       case "addSection":
         fresh(op.id, "section");
-        return ops.addSection(doc, { id: op.id, name: op.name, startTick: op.bar * BAR, endTick: (op.bar + op.bars) * BAR, colour: swatchForIndex(doc.sections.length) });
+        return ops.addSection(doc, { id: op.id, name: op.name, startTick: op.bar * BAR(), endTick: (op.bar + op.bars) * BAR(), colour: swatchForIndex(doc.sections.length) });
       case "renameSection": {
         if (!doc.sections.some((s) => s.id === op.sectionId)) raise(`no section "${op.sectionId}"`);
         return ops.updateSection(doc, op.sectionId, { name: op.name });
       }
+      case "addEffect": {
+        const t = track(op.trackId);
+        fresh(op.id, "effect");
+        if (t.effects.length >= AI_LIMITS.effectsPerTrack) raise(`track ${t.id} already has ${AI_LIMITS.effectsPerTrack} effects, the limit`);
+        return ops.addEffect(doc, t.id, { id: op.id, kind: op.kind, enabled: op.enabled ?? true, params: clampEffectParams(op.kind, op.params ?? {}) });
+      }
+      case "removeEffect": {
+        const t = track(op.trackId);
+        effect(t, op.effectId);
+        return ops.removeEffect(doc, t.id, op.effectId);
+      }
+      case "setEffectParam": {
+        const t = track(op.trackId);
+        const e = effect(t, op.effectId);
+        const [value] = Object.values(clampEffectParams(e.kind, { [op.key]: op.value }));
+        return ops.setEffectParam(doc, t.id, e.id, op.key, value!);
+      }
+      case "setEffectEnabled": {
+        const t = track(op.trackId);
+        effect(t, op.effectId);
+        return ops.setEffectEnabled(doc, t.id, op.effectId, op.enabled);
+      }
+      case "setTimeSig":
+        return ops.setTimeSig(doc, [op.beats, op.unit]);
+      case "setAutomation": {
+        track(op.trackId);
+        const range = AUTOMATION_RANGES[op.param];
+        const points = op.points.map((p) => ({ tick: p.bar * BAR() + (p.step ?? 0) * STEP_TICKS, value: clamp(p.value, range.min, range.max) }));
+        return ops.setAutomationLane(doc, op.trackId, op.param, points);
+      }
+      case "quantiseNotes":
+        pattern(op.patternId);
+        return ops.quantiseNotes(doc, op.patternId, null, GRID_TICKS[op.grid ?? "1/16"], op.strength ?? 1);
     }
   }
 }

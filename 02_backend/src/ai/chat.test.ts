@@ -62,6 +62,18 @@ describe("runChat", () => {
     const out = await runChat(demoSong(), ask("what key?"), "fake", m.complete);
     expect(out).toMatchObject({ ok: true, ops: [], repaired: false });
   });
+
+  it("teaches the effect and automation ops and passes a setAutomation reply through", async () => {
+    const lane = { op: "setAutomation", trackId: "keys", param: "volume", points: [{ bar: 0, value: -40 }, { bar: 2, value: -8 }] };
+    const m = scripted([JSON.stringify({ message: "Fading the keys in.", ops: [lane] })]);
+    const out = await runChat(demoSong(), ask("fade the keys in"), "fake", m.complete);
+    const system = m.calls[0]![0]!.content;
+    for (const name of ["addEffect", "removeEffect", "setEffectParam", "setEffectEnabled", "setTimeSig", "setAutomation", "quantiseNotes"]) expect(system).toContain(`"op":"${name}"`);
+    expect(system).toContain("Effect parameters");
+    expect(system).toContain("fx=[compressor:drums-comp");
+    expect(out).toMatchObject({ ok: true, rejected: [], repaired: false });
+    expect(out.ok && out.ops).toEqual([lane]);
+  });
 });
 
 describe("complete", () => {

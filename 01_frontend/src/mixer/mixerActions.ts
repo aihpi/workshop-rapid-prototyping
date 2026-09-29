@@ -1,5 +1,5 @@
-import { ops } from "@hpi/shared";
-import type { InstrumentKind, Mix } from "@hpi/shared";
+import { defaultEffect, EFFECT_LABELS, newId, ops } from "@hpi/shared";
+import type { EffectKind, InstrumentKind, Mix } from "@hpi/shared";
 
 import { useSongStore } from "../state/index.ts";
 
@@ -39,5 +39,21 @@ export const mixerActions = {
   },
   setParam(trackId: string, key: string, value: number): void {
     song().apply("Sound", (d) => ops.setInstrumentParam(d, trackId, key, value));
+  },
+
+  addEffect(trackId: string, kind: EffectKind): void {
+    song().apply(`Add ${EFFECT_LABELS[kind]}`, (d) => ops.addEffect(d, trackId, defaultEffect(kind, newId())));
+  },
+  removeEffect(trackId: string, effectId: string, label: string): void {
+    song().apply(`Remove ${label}`, (d) => ops.removeEffect(d, trackId, effectId));
+  },
+  moveEffect(trackId: string, effectId: string, toIndex: number): void {
+    song().apply("Reorder effects", (d) => ops.moveEffect(d, trackId, effectId, toIndex));
+  },
+  setEffectEnabled(trackId: string, effectId: string, enabled: boolean, label: string): void {
+    song().apply(enabled ? `Enable ${label}` : `Bypass ${label}`, (d) => ops.setEffectEnabled(d, trackId, effectId, enabled));
+  },
+  setEffectParam(trackId: string, effectId: string, key: string, value: number | string): void {
+    song().apply("Effect", (d) => ops.setEffectParam(d, trackId, effectId, key, value));
   },
 };

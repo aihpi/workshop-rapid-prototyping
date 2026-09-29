@@ -1,8 +1,9 @@
 import type { InstrumentKind } from "@hpi/shared";
 
 import { INSTRUMENT_LABELS, INSTRUMENT_SPECS, paramValue } from "../audio/index.ts";
-import { useSongStore, useUiStore } from "../state/index.ts";
+import { selectSoundTrackId, useSongStore, useUiStore } from "../state/index.ts";
 import { swatchCss } from "../timeline/swatch.ts";
+import { DeviceChain } from "./DeviceChain.tsx";
 import { Fader } from "./Fader.tsx";
 import { mixerActions } from "./mixerActions.ts";
 
@@ -19,7 +20,7 @@ export function SoundPanel() {
   const editingTrackId = useSongStore((s) => (editingClipId ? s.doc.clips[editingClipId]?.trackId : undefined));
   const chosen = useUiStore((s) => s.soundTrackId);
   const setChosen = useUiStore((s) => s.setSoundTrack);
-  const trackId = editingTrackId ?? chosen ?? trackOrder[0];
+  const trackId = useSongStore((s) => selectSoundTrackId(s.doc, { editingClipId, soundTrackId: chosen }));
   const track = useSongStore((s) => (trackId ? s.doc.tracks[trackId] : undefined));
   const samples = useSongStore((s) => s.doc.samples);
 
@@ -86,6 +87,7 @@ export function SoundPanel() {
         ))}
         {specs.length === 0 && <span className="muted">This instrument has no parameters.</span>}
       </div>
+      <DeviceChain track={track} />
     </div>
   );
 }

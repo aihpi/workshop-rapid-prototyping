@@ -20,8 +20,21 @@ describe("summariseSong", () => {
   });
 
   it("names every id the model may reference", () => {
-    const ids = [...Object.keys(doc.tracks), ...Object.keys(doc.patterns), ...Object.keys(doc.clips), ...doc.sections.map((s) => s.id)];
+    const effectIds = Object.values(doc.tracks).flatMap((t) => t.effects.map((e) => e.id));
+    expect(effectIds.length).toBeGreaterThan(0);
+    const ids = [...Object.keys(doc.tracks), ...Object.keys(doc.patterns), ...Object.keys(doc.clips), ...doc.sections.map((s) => s.id), ...effectIds];
     for (const id of ids) expect(text, id).toContain(id);
+  });
+
+  it("lists each track's effects with non-default params and its automation lanes", () => {
+    expect(text).toMatch(/^ {2}drums "Drums"[^\n]* fx=\[compressor:drums-comp\{threshold=-18\}\]/m);
+    expect(text).toMatch(/^ {2}keys "Keys"[^\n]* auto=volume\(2pts\)\[0:0=-30,2:0=-8\]$/m);
+    expect(text).not.toMatch(/^ {2}bass "Bass"[^\n]*(fx=|auto=)/m);
+
+    const bypassed = demoSong();
+    bypassed.tracks["drums"]!.effects[0]!.enabled = false;
+    bypassed.tracks["drums"]!.effects.push({ id: "drums-verb", kind: "reverb", enabled: true, params: {} });
+    expect(summariseSong(bypassed)).toContain("fx=[compressor:drums-comp(off){threshold=-18},reverb:drums-verb{}]");
   });
 
   it("stays inside the budget for the demo", () => {

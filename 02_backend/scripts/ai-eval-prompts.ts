@@ -2,7 +2,7 @@
 // interpretation must pass. Loose on purpose; the point is to tell "did what
 // was asked" from "did something else", not to grade taste.
 
-import { ticksPerBar } from "@hpi/shared";
+import { STEP_TICKS, ticksPerBar } from "@hpi/shared";
 import type { SongDoc } from "@hpi/shared";
 
 import type { ChatOutcome } from "../src/ai/chat.ts";
@@ -108,4 +108,32 @@ export const PROMPTS: EvalPrompt[] = [
     },
   },
   { id: 10, text: "What key is this song in?", check: (o) => o.ops.length === 0 && /f\s*(minor|min\b|m\b)|fm\b/i.test(o.message) },
+  {
+    // The demo drums already carry one, so pointing at it counts as well as adding or reshaping one.
+    id: 11,
+    text: "Put a compressor on the drums",
+    check: (o, b, a) => {
+      const comps = (d: SongDoc) => d.tracks["drums"]?.effects.filter((e) => e.kind === "compressor" && e.enabled) ?? [];
+      return comps(a).length > 0 && (!same(comps(a), comps(b)) || (o.ops.length === 0 && /compress/i.test(o.message)));
+    },
+  },
+  {
+    id: 12,
+    text: "Fade the keys in over the intro",
+    check: (_o, _b, a) => {
+      const lane = a.tracks["keys"]?.automation["volume"];
+      const first = lane?.points[0];
+      if (!lane || !first || first.tick !== 0) return false;
+      return lane.points.some((p) => p.tick > 0 && p.tick <= 2 * BAR && p.value - first.value >= 10);
+    },
+  },
+  {
+    id: 13,
+    text: "Quantise the lead to the grid",
+    check: (o, _b, a) => {
+      const leadPatterns = new Set(clipsOn(a, "lead").map((c) => c.patternId));
+      const quantised = o.ops.some((op) => op.op === "quantiseNotes" && leadPatterns.has(op.patternId));
+      return quantised && [...leadPatterns].every((id) => a.patterns[id]?.notes.every((n) => n.start % STEP_TICKS === 0));
+    },
+  },
 ];

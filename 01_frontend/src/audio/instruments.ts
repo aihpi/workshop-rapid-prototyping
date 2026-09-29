@@ -12,9 +12,15 @@ import { resolvedParams } from "@hpi/shared";
 export interface Voice {
   readonly output: Tone.ToneAudioNode;
   trigger(pitch: number, time: number, velocity: number, durationSec: number): void;
+  /** Live input: a key went down and nobody knows yet how long it will be held. */
+  attack(pitch: number, time: number, velocity: number): void;
+  release(pitch: number, time: number): void;
   set(params: Record<string, number>): void;
   dispose(): void;
 }
+
+/** Percussive voices have no sustain to release, so a held key is one short hit. */
+const ONE_SHOT_SECONDS = 0.25;
 
 const hz = (midi: number): number => Tone.Frequency(midi, "midi").toFrequency();
 
@@ -96,6 +102,12 @@ class KitVoice implements Voice {
     }
   }
 
+  attack(pitch: number, time: number, velocity: number): void {
+    this.trigger(pitch, time, velocity, ONE_SHOT_SECONDS);
+  }
+
+  release(): void {}
+
   set(params: Record<string, number>): void {
     this.tuneRatio = Math.pow(2, (params["tune"] ?? 0) / 12);
     const decay = params["decay"] ?? 1;
@@ -133,6 +145,12 @@ class PluckVoice implements Voice {
     voice.triggerAttackRelease(hz(pitch), durationSec, time, velocity);
   }
 
+  attack(pitch: number, time: number, velocity: number): void {
+    this.trigger(pitch, time, velocity, 1);
+  }
+
+  release(): void {}
+
   set(params: Record<string, number>): void {
     for (const v of this.voices) {
       if (params["dampening"] !== undefined) v.dampening = params["dampening"];
@@ -169,6 +187,14 @@ class FmVoice implements Voice {
     this.poly.triggerAttackRelease(hz(pitch), durationSec, time, velocity);
   }
 
+  attack(pitch: number, time: number, velocity: number): void {
+    this.poly.triggerAttack(hz(pitch), time, velocity);
+  }
+
+  release(pitch: number, time: number): void {
+    this.poly.triggerRelease(hz(pitch), time);
+  }
+
   set(params: Record<string, number>): void {
     this.poly.set({
       ...present(params, ["harmonicity", "modulationIndex"]),
@@ -199,6 +225,14 @@ class PolyVoice implements Voice {
 
   trigger(pitch: number, time: number, velocity: number, durationSec: number): void {
     this.poly.triggerAttackRelease(hz(pitch), durationSec, time, velocity);
+  }
+
+  attack(pitch: number, time: number, velocity: number): void {
+    this.poly.triggerAttack(hz(pitch), time, velocity);
+  }
+
+  release(pitch: number, time: number): void {
+    this.poly.triggerRelease(hz(pitch), time);
   }
 
   set(params: Record<string, number>): void {
@@ -239,6 +273,14 @@ class SamplerVoice implements Voice {
     this.sampler.triggerAttackRelease(hz(this.fixedPitch ? 60 : pitch), Math.max(durationSec, 0.25), time, velocity);
   }
 
+  attack(pitch: number, time: number, velocity: number): void {
+    if (this.sampler.loaded) this.sampler.triggerAttack(hz(this.fixedPitch ? 60 : pitch), time, velocity);
+  }
+
+  release(pitch: number, time: number): void {
+    if (this.sampler.loaded) this.sampler.triggerRelease(hz(this.fixedPitch ? 60 : pitch), time);
+  }
+
   set(params: Record<string, number>): void {
     if (params["attack"] !== undefined) this.sampler.attack = params["attack"];
     if (params["release"] !== undefined) this.sampler.release = params["release"];
@@ -254,6 +296,8 @@ class SamplerVoice implements Voice {
 class SilentVoice implements Voice {
   readonly output = new Tone.Gain(0);
   trigger(): void {}
+  attack(): void {}
+  release(): void {}
   set(): void {}
   dispose(): void {
     this.output.dispose();

@@ -1,11 +1,12 @@
 /*
-  HPI brand tokens. Source: HPI Manual Update 2025.
+  HPI brand tokens. Source: HPI Corporate Design Manual, May 2025.
   Every colour in the app comes from here. Nothing else declares a hex value.
 
-  Primary: the four CI colours in the logo. Secondary: only ONE may appear on
-  screen at a time, so a single one is chosen as the accent and the rest are
-  declared but unused. Track colours use the permitted 100/75/50/25% gradations
-  of the primaries.
+  The page is paper: white ground, ink text, grey for the second voice, one
+  hairline grey for rules, and HPI red as the single accent, spent on the
+  playhead and the record button. Primary: the four CI colours in the logo,
+  used as track colours in their 100/75/50/25% tints. Secondary colours are
+  declared for completeness and unused; the brand test enforces at most one.
 */
 :root {
   /* primary */
@@ -14,7 +15,7 @@
   --hpi-yellow: #f6a800;
   --hpi-grey: #5a6065;
 
-  /* secondary, one at a time */
+  /* secondary, one at a time, none in use */
   --hpi-purple: #7664a0;
   --hpi-petrol: #007a9e;
   --hpi-green: #779a0b;
@@ -23,21 +24,32 @@
   /* neutrals from the web scheme */
   --hpi-ink: #212427;
   --hpi-white: #ffffff;
+  /* HPI grey at 25 %: the hairline. HPI yellow at 25 %: the callout ground. */
+  --hpi-rule: #d6d7d8;
+  --hpi-note: #fde9bf;
 
   /* semantic */
-  --accent: var(--hpi-petrol);
-  --bg: var(--hpi-ink);
-  --bg-raised: color-mix(in srgb, var(--hpi-ink) 85%, var(--hpi-white));
-  --bg-sunken: color-mix(in srgb, var(--hpi-ink) 92%, black);
-  --fg: var(--hpi-white);
-  --fg-muted: color-mix(in srgb, var(--hpi-white) 60%, var(--hpi-grey));
-  --border: color-mix(in srgb, var(--hpi-grey) 50%, var(--hpi-ink));
+  --accent: var(--hpi-red);
+  --bg: var(--hpi-white);
+  --bg-raised: var(--hpi-white);
+  --bg-sunken: color-mix(in srgb, var(--hpi-ink) 4%, var(--hpi-white));
+  --fg: var(--hpi-ink);
+  --fg-muted: var(--hpi-grey);
+  --border: var(--hpi-rule);
+  --note: var(--hpi-note);
 
-  /* typography. Neo Sans is licensed and never shipped; it renders where installed. */
-  --font: "Neo Sans", "Exo 2", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* grids: the timeline and editors sit on the same paper */
+  --bg-lanes: var(--hpi-white);
+  --grid-line: var(--hpi-rule);
+  --grid-line-strong: color-mix(in srgb, var(--hpi-grey) 60%, var(--hpi-white));
+  --roll-in-scale: var(--hpi-white);
+  --roll-out-scale: var(--bg-sunken);
+
+  /* typography: Inter on screen, per the manual; Verdana and Arial when offline */
+  --font: "Inter", Verdana, Arial, sans-serif;
   --leading: 1.35;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 *,
@@ -80,17 +92,6 @@ body {
   margin: 0;
   font-size: 1.125rem;
   font-weight: 500;
-  letter-spacing: 0.02em;
-}
-
-.brand::before {
-  content: "";
-  display: inline-block;
-  width: 0.6em;
-  height: 0.6em;
-  margin-right: 0.5em;
-  background: var(--accent);
-  vertical-align: 0.05em;
 }
 
 .muted {
@@ -125,10 +126,10 @@ body {
 
 .button {
   padding: 0.35rem 0.9rem;
-  border: 1px solid var(--accent);
-  border-radius: 3px;
-  background: var(--accent);
-  color: var(--fg);
+  border: 1px solid var(--fg);
+  border-radius: 2px;
+  background: var(--fg);
+  color: var(--bg);
   font: inherit;
   font-weight: 500;
   cursor: pointer;
@@ -137,7 +138,11 @@ body {
 .button.ghost {
   border-color: var(--border);
   background: transparent;
-  color: var(--fg-muted);
+  color: var(--fg);
+}
+
+.button.ghost:hover:not(:disabled) {
+  border-color: var(--fg-muted);
 }
 
 .button:disabled {
@@ -146,13 +151,6 @@ body {
 }
 
 /* ------------------------------------------------------------------ timeline */
-
-:root {
-  /* Neutral greys derived from the ink, for the grid only. Not brand colours. */
-  --bg-lanes: #1b1d1f;
-  --grid-line: #2c3034;
-  --grid-line-strong: #40454a;
-}
 
 .timeline {
   display: flex;
@@ -187,8 +185,8 @@ body {
 .select {
   padding: 0.25rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg-sunken);
+  border-radius: 2px;
+  background: var(--bg);
   color: var(--fg);
   font: inherit;
   font-size: 0.8rem;
@@ -276,16 +274,22 @@ body {
 }
 
 .chip {
-  width: 1.5rem;
+  min-width: 1.5rem;
   height: 1.5rem;
+  padding: 0 0.3rem;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 500;
   cursor: pointer;
+}
+
+.chip:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .chip.on {
@@ -295,9 +299,9 @@ body {
 }
 
 .chip.on.solo {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--fg);
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
 }
 
 .lanes {
@@ -324,10 +328,10 @@ body {
   flex-direction: column;
   padding: 0.3rem 0.5rem;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--clip-colour) 60%, var(--hpi-ink));
+  border: 1px solid color-mix(in srgb, var(--clip-colour) 70%, var(--fg));
   border-left: 4px solid var(--clip-colour);
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--clip-colour) 28%, var(--bg-lanes));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--clip-colour) 22%, var(--bg));
   color: var(--fg);
   font-size: 0.8rem;
   cursor: grab;
@@ -338,12 +342,12 @@ body {
 }
 
 .clip.selected {
-  outline: 2px solid var(--fg);
-  outline-offset: -2px;
+  outline: 1px solid var(--fg);
+  outline-offset: -1px;
 }
 
 .clip.editing {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--fg);
   outline-offset: -2px;
 }
 
@@ -391,24 +395,12 @@ body.dragging * {
   left: 0;
   z-index: 2;
   width: 2px;
-  background: var(--hpi-orange);
+  background: var(--accent);
   pointer-events: none;
   will-change: transform;
 }
 
-.bottom-pane {
-  height: 220px;
-  padding: 0.75rem 1.25rem;
-  border-top: 1px solid var(--border);
-  background: var(--bg-raised);
-}
-
 /* --------------------------------------------------------------- bottom pane */
-
-:root {
-  --roll-in-scale: #22262a;
-  --roll-out-scale: #1b1d1f;
-}
 
 .bottom-pane {
   display: flex;
@@ -427,10 +419,10 @@ body.dragging * {
 }
 
 .tab {
-  padding: 0.35rem 0.9rem;
-  border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 3px 3px 0 0;
+  padding: 0.35rem 0.9rem 0.3rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
   background: transparent;
   color: var(--fg-muted);
   font: inherit;
@@ -439,8 +431,7 @@ body.dragging * {
 }
 
 .tab.active {
-  border-color: var(--border);
-  background: var(--bg);
+  border-bottom-color: var(--fg);
   color: var(--fg);
 }
 
@@ -475,7 +466,7 @@ body.dragging * {
   min-width: 10rem;
   padding: 0.2rem 0.4rem;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -489,11 +480,15 @@ body.dragging * {
   outline: none;
 }
 
+/* A callout: ink on the yellow tint, no border, as the manual draws them. */
 .linked-notice {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
-  color: var(--hpi-yellow);
+  padding: 0.2rem 0.6rem;
+  border-radius: 2px;
+  background: var(--note);
+  color: var(--fg);
   font-size: 0.8rem;
 }
 
@@ -586,7 +581,7 @@ body.dragging * {
   left: 0;
   z-index: 2;
   width: 2px;
-  background: var(--hpi-orange);
+  background: var(--accent);
   pointer-events: none;
   will-change: transform, opacity;
 }
@@ -646,7 +641,7 @@ body.dragging * {
   position: absolute;
   top: 0;
   left: 0;
-  border: 1px solid color-mix(in srgb, var(--track-colour) 50%, white);
+  border: 1px solid color-mix(in srgb, var(--track-colour) 60%, var(--fg));
   border-radius: 2px;
   background: var(--track-colour);
   cursor: grab;
@@ -683,14 +678,13 @@ body.dragging * {
   gap: 0.3rem;
   width: 132px;
   padding: 0.5rem 0.6rem 0.5rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-raised);
+  border-right: 1px solid var(--border);
 }
 
 .strip.master {
   margin-left: auto;
-  border-color: var(--accent);
+  border-right: 0;
+  border-left: 1px solid var(--fg);
 }
 
 .strip-swatch {
@@ -699,7 +693,6 @@ body.dragging * {
   bottom: 0;
   left: 0;
   width: 5px;
-  border-radius: 4px 0 0 4px;
   background: var(--track-colour);
 }
 
@@ -769,11 +762,11 @@ body.dragging * {
 .fader input[type="range"] {
   width: 100%;
   margin: 0;
-  accent-color: var(--track-colour, var(--accent));
+  accent-color: var(--track-colour, var(--fg-muted));
 }
 
 .strip.master input[type="range"] {
-  accent-color: var(--accent);
+  accent-color: var(--fg);
 }
 
 .fader.vertical input[type="range"] {
@@ -810,7 +803,7 @@ body.dragging * {
   min-width: 9rem;
   padding: 0.2rem 0.4rem;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -831,13 +824,14 @@ body.dragging * {
   font-size: 0.75rem;
 }
 
+/* Yellow and orange text fail contrast on paper; the tint ground carries the warning instead. */
 .save-state.offline,
-.save-state.error {
-  color: var(--hpi-yellow);
-}
-
+.save-state.error,
 .save-state.conflict {
-  color: var(--hpi-orange);
+  padding: 0.1rem 0.5rem;
+  border-radius: 2px;
+  background: var(--note);
+  color: var(--fg);
 }
 
 .song-list {
@@ -847,10 +841,9 @@ body.dragging * {
   z-index: 20;
   min-width: 18rem;
   padding: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--bg-raised);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+  border: 1px solid var(--fg-muted);
+  border-radius: 2px;
+  background: var(--bg);
 }
 
 .song-list-actions {
@@ -868,7 +861,7 @@ body.dragging * {
 }
 
 .song-row.current .song-row-open {
-  color: var(--accent);
+  font-weight: 500;
 }
 
 .song-row-open {
@@ -878,7 +871,7 @@ body.dragging * {
   gap: 1rem;
   padding: 0.35rem 0.5rem;
   border: 0;
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   color: var(--fg);
   font: inherit;
@@ -915,9 +908,11 @@ body.dragging * {
   gap: 0.6rem;
 }
 
+/* The one red mark in the top bar. */
 .button.record {
-  border-color: var(--hpi-red);
-  background: var(--hpi-red);
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--hpi-white);
 }
 
 .button.record.on {
@@ -933,7 +928,7 @@ body.dragging * {
 .waveform canvas {
   display: block;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 
 .trim-controls {
@@ -961,10 +956,8 @@ body.dragging * {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg-raised);
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .sample-name {
@@ -985,17 +978,21 @@ body.dragging * {
   z-index: 50;
   display: grid;
   place-items: center;
-  background: rgb(0 0 0 / 0.55);
+  background: color-mix(in srgb, var(--hpi-ink) 35%, transparent);
 }
 
 .modal {
   min-width: 20rem;
   max-width: 34rem;
   padding: 1.25rem 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-raised);
+  border: 1px solid var(--fg-muted);
+  border-radius: 2px;
+  background: var(--bg);
   text-align: center;
+}
+
+.modal.help h2 + h2 {
+  margin-top: 1rem;
 }
 
 .modal.help {
@@ -1027,7 +1024,7 @@ body.dragging * {
 kbd {
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--border);
-  border-radius: 3px;
+  border-radius: 2px;
   background: var(--bg-sunken);
   font: inherit;
   font-size: 0.8rem;
@@ -1038,7 +1035,7 @@ kbd {
   height: 28px;
   margin: 0 auto 0.75rem;
   border: 3px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--fg);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
 }
@@ -1054,16 +1051,17 @@ kbd {
 .partner-logo {
   height: 26px;
   margin-left: 0.75rem;
-  opacity: 0.9;
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--fg);
   outline-offset: 2px;
 }
 
 .step:focus-visible,
-.clip:focus-visible {
+.clip:focus-visible,
+.roll-note:focus-visible,
+.automation-point:focus-visible {
   outline-offset: -2px;
 }
 
@@ -1080,13 +1078,17 @@ h3 {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--hpi-ink) 15%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .button.record.on,
   .spinner {
     animation: none;
+  }
+
+  * {
+    transition: none !important;
   }
 }
 
@@ -1163,7 +1165,7 @@ h3 {
 
 .ai-turn {
   padding: 0.5rem 0.65rem;
-  border-radius: 6px;
+  border-radius: 2px;
   white-space: pre-wrap;
   line-height: var(--leading);
 }
@@ -1171,15 +1173,15 @@ h3 {
 .ai-turn.user {
   align-self: flex-end;
   max-width: 90%;
-  background: color-mix(in srgb, var(--accent) 35%, var(--bg));
-}
-
-.ai-turn.assistant {
   background: var(--bg-sunken);
 }
 
+.ai-turn.assistant {
+  border: 1px solid var(--border);
+}
+
 .ai-turn.assistant.error {
-  border-left: 3px solid var(--hpi-red);
+  border-color: var(--fg);
 }
 
 .ai-turn p {
@@ -1206,8 +1208,8 @@ h3 {
 
 .ai-hint {
   padding: 0.6rem 0.75rem;
-  border-left: 3px solid var(--hpi-yellow);
-  background: var(--bg-sunken);
+  border-radius: 2px;
+  background: var(--note);
 }
 
 .ai-compose {
@@ -1222,26 +1224,272 @@ h3 {
   min-width: 0;
   padding: 0.4rem 0.5rem;
   border: 1px solid var(--border);
-  border-radius: 3px;
-  background: var(--bg-sunken);
+  border-radius: 2px;
+  background: var(--bg);
   color: var(--fg);
   font: inherit;
   font-size: 0.85rem;
   resize: none;
 }
 
+/* Links are ink with a grey underline, red on hover, as on hpi.de. */
 .link {
   margin-left: 0.5rem;
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--fg);
   font: inherit;
   text-decoration: underline;
+  text-decoration-color: var(--fg-muted);
   cursor: pointer;
 }
 
+.link:hover {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
 .button.ghost.active {
-  border-color: var(--accent);
+  border-color: var(--fg);
+  background: var(--bg-sunken);
   color: var(--fg);
+}
+
+/* ------------------------------------------------- transport and live input */
+
+/* Its own row under the header, the full width, like every DAW's transport strip. */
+.transport-bar {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.transport {
+  gap: 0.6rem;
+}
+
+.transport .readout {
+  margin-left: 0.5rem;
+  font-size: 1rem;
+  color: var(--fg);
+}
+
+.number {
+  width: 3.6rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.midi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* ------------------------------------------------------------------ meters */
+
+.meter {
+  position: relative;
+  align-self: stretch;
+  width: 4px;
+  margin: 1.5rem 0 1.4rem;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-sunken);
+}
+
+.meter-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--track-colour, var(--fg-muted));
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+.meter-fill.hot {
+  background: var(--fg);
+}
+
+.strip.master .meter-fill {
+  background: var(--fg-muted);
+}
+
+.strip-fader {
+  gap: 0.4rem;
+}
+
+/* ----------------------------------------------------------- device chain */
+
+.devices {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.devices-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.device-list {
+  display: flex;
+  overflow-x: auto;
+}
+
+.device {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 240px;
+  padding: 0.4rem 1rem 0.4rem 0;
+  margin-right: 1rem;
+  border-right: 1px solid var(--border);
+}
+
+.device:last-child {
+  border-right: 0;
+}
+
+.device.off .fader,
+.device.off .device-name {
+  opacity: 0.45;
+}
+
+.device-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.device-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.device .fader {
+  grid-template-columns: 5rem 1fr 3.5rem;
+}
+
+.sound-panel {
+  overflow: auto;
+}
+
+.sound-panel .params {
+  flex: none;
+  overflow: visible;
+}
+
+/* -------------------------------------------------------------- automation */
+
+.track-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.lane-header {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.4rem 0.6rem 0 0.9rem;
+  border-bottom: 1px solid var(--grid-line);
+  background: var(--bg-sunken);
+}
+
+.automation-lane {
+  position: absolute;
+  left: 0;
+  cursor: crosshair;
+  pointer-events: auto;
+}
+
+.lane-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lane-svg polyline,
+.lane-svg line {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 1.5;
+}
+
+.automation-point {
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--fg);
+  border-radius: 50%;
+  background: var(--track-colour);
+  cursor: grab;
+  touch-action: none;
+}
+
+.chip.dot {
+  border-color: var(--fg);
+}
+
+/* Shift-click would otherwise extend a text selection, and dragging selected
+   text starts a native drag that swallows pointer events until the drop. */
+.piano-roll,
+.step-grid,
+.lanes,
+.ruler-canvas {
+  user-select: none;
+}
+
+/* ------------------------------------------------------ piano roll velocity */
+
+.velocity-lane {
+  position: absolute;
+  border-top: 1px solid var(--grid-line-strong);
+  background: var(--bg-sunken);
+}
+
+.vel-bar {
+  position: absolute;
+  bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--track-colour) 70%, var(--bg));
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.vel-bar.selected {
+  outline: 2px solid var(--fg);
+  outline-offset: -2px;
+}
+
+.velocity-label {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--grid-line-strong);
+}
+
+.roll-note {
+  background: color-mix(in srgb, var(--track-colour) calc(35% + var(--vel, 1) * 65%), var(--bg));
+}
+
+.roll-note.selected {
+  outline: 2px solid var(--fg);
+  outline-offset: -1px;
+}
+
+.step.on {
+  background: color-mix(in srgb, var(--track-colour) calc(35% + var(--vel, 1) * 65%), var(--bg));
 }

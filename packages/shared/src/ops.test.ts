@@ -152,6 +152,107 @@ describe("pattern length", () => {
   });
 });
 
+describe("effects", () => {
+  const fx = (id: string, kind: "filter" | "reverb" | "compressor" = "filter") => ({ id, kind, enabled: true, params: {} });
+
+  it("adds in order, at an index, and removes by id", () => {
+    const song = fixture();
+    ops.addEffect(song, "drums", fx("a"));
+    ops.addEffect(song, "drums", fx("c", "reverb"));
+    ops.addEffect(song, "drums", fx("b", "compressor"), 1);
+    expect(song.tracks["drums"]!.effects.map((e) => e.id)).toEqual(["a", "b", "c"]);
+    ops.removeEffect(song, "drums", "b");
+    expect(song.tracks["drums"]!.effects.map((e) => e.id)).toEqual(["a", "c"]);
+  });
+
+  it("moves within the chain and clamps the target", () => {
+    const song = fixture();
+    for (const id of ["a", "b", "c"]) ops.addEffect(song, "drums", fx(id));
+    ops.moveEffect(song, "drums", "c", 0);
+    expect(song.tracks["drums"]!.effects.map((e) => e.id)).toEqual(["c", "a", "b"]);
+    ops.moveEffect(song, "drums", "c", 99);
+    expect(song.tracks["drums"]!.effects.map((e) => e.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("toggles and sets params without touching the rest", () => {
+    const song = fixture();
+    ops.addEffect(song, "drums", fx("a"));
+    ops.setEffectEnabled(song, "drums", "a", false);
+    ops.setEffectParam(song, "drums", "a", "frequency", 440);
+    ops.setEffectParam(song, "drums", "a", "type", "highpass");
+    expect(song.tracks["drums"]!.effects[0]).toEqual({ id: "a", kind: "filter", enabled: false, params: { frequency: 440, type: "highpass" } });
+  });
+});
+
+describe("automation", () => {
+  it("upserts points and keeps them sorted", () => {
+    const song = fixture();
+    ops.setAutomationPoint(song, "drums", "volume", 400, -6);
+    ops.setAutomationPoint(song, "drums", "volume", 0, -30);
+    ops.setAutomationPoint(song, "drums", "volume", 400, -3);
+    expect(song.tracks["drums"]!.automation["volume"]!.points).toEqual([
+      { tick: 0, value: -30 },
+      { tick: 400, value: -3 },
+    ]);
+  });
+
+  it("removing the last point removes the lane", () => {
+    const song = fixture();
+    ops.setAutomationPoint(song, "drums", "pan", 0, -1);
+    ops.removeAutomationPoint(song, "drums", "pan", 0);
+    expect(song.tracks["drums"]!.automation["pan"]).toBeUndefined();
+  });
+
+  it("replacing a lane sorts, dedupes with last-wins, and clears on empty", () => {
+    const song = fixture();
+    ops.setAutomationLane(song, "drums", "sendReverb", [
+      { tick: 200, value: 0.5 },
+      { tick: 0, value: 0 },
+      { tick: 200, value: 0.9 },
+    ]);
+    expect(song.tracks["drums"]!.automation["sendReverb"]!.points).toEqual([
+      { tick: 0, value: 0 },
+      { tick: 200, value: 0.9 },
+    ]);
+    ops.setAutomationLane(song, "drums", "sendReverb", []);
+    expect(song.tracks["drums"]!.automation["sendReverb"]).toBeUndefined();
+  });
+});
+
+describe("quantise and velocity", () => {
+  const S = STEP_TICKS;
+
+  it("snaps to the grid at full strength and halfway at half", () => {
+    const song = fixture();
+    ops.addNote(song, "p1", { id: "a", start: 3 * S + 10, duration: S, pitch: 36, velocity: 1 });
+    ops.addNote(song, "p1", { id: "b", start: S + 20, duration: S, pitch: 38, velocity: 1 });
+    ops.quantiseNotes(song, "p1", ["a"], S);
+    ops.quantiseNotes(song, "p1", ["b"], S, 0.5);
+    const starts = Object.fromEntries(song.patterns["p1"]!.notes.map((n) => [n.id, n.start]));
+    expect(starts["a"]).toBe(3 * S);
+    expect(starts["b"]).toBe(S + 10);
+  });
+
+  it("never pushes a note onto the pattern's end and leaves unlisted notes alone", () => {
+    const song = fixture();
+    ops.addNote(song, "p1", { id: "late", start: BAR - 5, duration: S, pitch: 36, velocity: 1 });
+    ops.addNote(song, "p1", { id: "other", start: 7, duration: S, pitch: 36, velocity: 1 });
+    ops.quantiseNotes(song, "p1", ["late"], S);
+    const starts = Object.fromEntries(song.patterns["p1"]!.notes.map((n) => [n.id, n.start]));
+    expect(starts["late"]).toBe(BAR - S);
+    expect(starts["other"]).toBe(7);
+  });
+
+  it("clamps velocity to 0..1", () => {
+    const song = fixture();
+    ops.addNote(song, "p1", { id: "a", start: 0, duration: S, pitch: 36, velocity: 0.5 });
+    ops.setNoteVelocity(song, "p1", ["a"], 1.7);
+    expect(song.patterns["p1"]!.notes[0]!.velocity).toBe(1);
+    ops.setNoteVelocity(song, "p1", ["a"], -2);
+    expect(song.patterns["p1"]!.notes[0]!.velocity).toBe(0);
+  });
+});
+
 describe("sections", () => {
   it("stay sorted by start", () => {
     const song = fixture();

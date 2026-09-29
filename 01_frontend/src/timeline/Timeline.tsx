@@ -1,13 +1,17 @@
-import { ops, ticksPerBar } from "@hpi/shared";
-import { useCallback, useRef } from "react";
+import { AUTOMATION_RANGES, MIX_AUTOMATION_PARAMS, ops, ticksPerBar } from "@hpi/shared";
+import type { MixAutomationParam } from "@hpi/shared";
+import { useCallback, useMemo, useRef } from "react";
 
 import { useSongStore, useUiStore } from "../state/index.ts";
-import { actions, SNAP_OPTIONS } from "./actions.ts";
+import { actions } from "./actions.ts";
+import { AutomationLane } from "./AutomationLane.tsx";
 import { Grid, Ruler } from "./Canvases.tsx";
 import { ClipView } from "./ClipView.tsx";
-import { contentBars, floorToGrid, HEADER_W, pxToTick, ROW_H, rowAt, RULER_H } from "./geometry.ts";
+import { contentBars, floorToGrid, HEADER_W, LANE_H, layoutHeight, pxToTick, ROW_H, rowAtY, rowLayout, RULER_H } from "./geometry.ts";
 import { startClipGesture } from "./gesture.ts";
 import { Playhead } from "./Playhead.tsx";
+import { SNAP_OPTIONS, snapTicksFor } from "./snap.ts";
+import type { SnapName } from "./snap.ts";
 import { swatchCss } from "./swatch.ts";
 import { useShortcuts } from "./useShortcuts.ts";
 import { useViewportWidth } from "./useScroller.ts";
@@ -15,12 +19,15 @@ import { useViewportWidth } from "./useScroller.ts";
 /**
  * The arrangement view. One scroll container holds a CSS grid: the ruler is
  * sticky to the top, track headers sticky to the left, and the two canvases
- * are viewport-sized and redraw with the scroll offset. Clips are DOM.
+ * are viewport-sized and redraw with the scroll offset. Clips are DOM. A track
+ * with an open automation lane is taller, so rows go through `rowLayout`.
  */
 export function Timeline() {
   const doc = useSongStore((s) => s.doc);
   const pxPerBar = useUiStore((s) => s.pxPerBar);
-  const snap = useUiStore((s) => s.snapTicks);
+  const snapName = useUiStore((s) => s.snap);
+  const snap = snapTicksFor(snapName, doc.meta.timeSig);
+  const lanes = useUiStore((s) => s.automationLanes);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const lanesRef = useRef<HTMLDivElement>(null);
   const viewportTotal = useViewportWidth(scrollerRef);
@@ -30,21 +37,25 @@ export function Timeline() {
   const tpb = ticksPerBar(doc.meta.timeSig);
   const bars = contentBars(ops.songEndTick(doc), tpb, pxPerBar, viewportW);
   const contentPx = bars * pxPerBar;
-  const lanesH = Math.max(doc.trackOrder.length, 1) * ROW_H;
+  const rows = useMemo(() => rowLayout(doc.trackOrder, lanes), [doc.trackOrder, lanes]);
+  const lanesH = layoutHeight(rows);
+  const rowTop = useCallback((trackId: string) => rows.find((r) => r.trackId === trackId)?.top ?? 0, [rows]);
 
   const onClipPointerDown = useCallback(
     (e: React.PointerEvent<HTMLElement>, clipId: string, mode: "move" | "resize") => {
-      const lanes = lanesRef.current;
-      if (!lanes || e.button !== 0) return;
+      const lanesEl = lanesRef.current;
+      if (!lanesEl || e.button !== 0) return;
       const state = useSongStore.getState().doc;
       const ui = useUiStore.getState();
       startClipGesture(e.nativeEvent, e.currentTarget, clipId, mode, {
-        lanes,
+        lanes: lanesEl,
         pxPerBar,
         ticksPerBar: tpb,
         snap,
         trackOrder: state.trackOrder,
         trackKind: (id) => state.tracks[id]?.kind,
+        rowTop,
+        trackAtY: (y) => rowAtY(y, rows)?.row.trackId,
         clip: (id) => state.clips[id],
         group: (id) => (ui.selectedClipIds.includes(id) ? ui.selectedClipIds : [id]),
         onMove: actions.moveClips,
@@ -55,19 +66,18 @@ export function Timeline() {
         },
       });
     },
-    [pxPerBar, tpb, snap],
+    [pxPerBar, tpb, snap, rowTop, rows],
   );
 
   const onLanesDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const lanes = lanesRef.current;
-    const onEmptyLane = e.target === lanes || (e.target as HTMLElement).classList.contains("grid-canvas");
-    if (!lanes || !onEmptyLane) return;
-    const rect = lanes.getBoundingClientRect();
-    const row = rowAt(e.clientY - rect.top, doc.trackOrder.length);
-    if (row === null) return;
-    const trackId = doc.trackOrder[row]!;
+    const lanesEl = lanesRef.current;
+    const onEmptyLane = e.target === lanesEl || (e.target as HTMLElement).classList.contains("grid-canvas");
+    if (!lanesEl || !onEmptyLane) return;
+    const rect = lanesEl.getBoundingClientRect();
+    const hit = rowAtY(e.clientY - rect.top, rows);
+    if (!hit || !hit.inClips) return;
     const tick = pxToTick(e.clientX - rect.left, pxPerBar, tpb);
-    actions.addClipAt(trackId, floorToGrid(tick, snap || tpb));
+    actions.addClipAt(hit.row.trackId, floorToGrid(tick, snap || tpb));
   };
 
   const onLanesPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -86,17 +96,21 @@ export function Timeline() {
             <Ruler scrollerRef={scrollerRef} viewportW={viewportW} />
           </div>
           <div className="headers">
-            {doc.trackOrder.map((id) => (
-              <TrackHeader key={id} trackId={id} />
+            {rows.map((row) => (
+              <TrackHeader key={row.trackId} trackId={row.trackId} lane={row.lane} />
             ))}
             {doc.trackOrder.length === 0 && <div className="track-header muted">No tracks yet</div>}
           </div>
           <div className="lanes" ref={lanesRef} style={{ height: lanesH }} onDoubleClick={onLanesDoubleClick} onPointerDown={onLanesPointerDown}>
-            <Grid scrollerRef={scrollerRef} viewportW={viewportW} />
+            <Grid scrollerRef={scrollerRef} viewportW={viewportW} rows={rows} height={lanesH} />
             <div className="clips">
               {Object.values(doc.clips).map((clip) => {
-                const row = doc.trackOrder.indexOf(clip.trackId);
-                return row === -1 ? null : <ClipView key={clip.id} clip={clip} row={row} onPointerDown={onClipPointerDown} />;
+                const row = rows.find((r) => r.trackId === clip.trackId);
+                return row ? <ClipView key={clip.id} clip={clip} top={row.top} onPointerDown={onClipPointerDown} /> : null;
+              })}
+              {rows.map((row) => {
+                const track = row.lane ? doc.tracks[row.trackId] : undefined;
+                return track && row.lane ? <AutomationLane key={row.trackId} track={track} param={row.lane} top={row.top + ROW_H} width={contentPx} /> : null;
               })}
             </div>
             <Playhead scrollerRef={scrollerRef} height={lanesH} />
@@ -107,41 +121,68 @@ export function Timeline() {
   );
 }
 
-function TrackHeader({ trackId }: { trackId: string }) {
+function TrackHeader({ trackId, lane }: { trackId: string; lane: MixAutomationParam | null }) {
   const track = useSongStore((s) => s.doc.tracks[trackId]);
+  const setLane = useUiStore((s) => s.setAutomationLane);
   if (!track) return null;
+  const automated = Object.keys(track.automation).length > 0;
   return (
-    <div className="track-header" style={{ height: ROW_H, ["--track-colour" as string]: swatchCss(track.colour) }}>
-      <div className="track-swatch" />
-      <div className="track-meta">
-        <button
-          className="track-name"
-          onDoubleClick={() => {
-            const name = window.prompt("Track name", track.name);
-            if (name && name !== track.name) actions.renameTrack(trackId, name);
-          }}
-          title="Double-click to rename"
-        >
-          {track.name}
-        </button>
-        <span className="muted small">{track.instrument.kind}</span>
+    <div className="track-block" style={{ ["--track-colour" as string]: swatchCss(track.colour) }}>
+      <div className="track-header" style={{ height: ROW_H }}>
+        <div className="track-swatch" />
+        <div className="track-meta">
+          <button
+            className="track-name"
+            onDoubleClick={() => {
+              const name = window.prompt("Track name", track.name);
+              if (name && name !== track.name) actions.renameTrack(trackId, name);
+            }}
+            title="Double-click to rename"
+          >
+            {track.name}
+          </button>
+          <span className="muted small">
+            {track.instrument.kind}
+            {track.effects.length ? ` · ${track.effects.length} fx` : ""}
+          </span>
+        </div>
+        <div className="track-buttons">
+          <button className={`chip ${track.mix.mute ? "on" : ""}`} onClick={() => actions.toggleMute(trackId)} title="Mute">
+            M
+          </button>
+          <button className={`chip ${track.mix.solo ? "on solo" : ""}`} onClick={() => actions.toggleSolo(trackId)} title="Solo">
+            S
+          </button>
+          <button
+            className={`chip ${lane ? "on" : automated ? "dot" : ""}`}
+            aria-pressed={lane !== null}
+            onClick={() => setLane(trackId, lane ? null : "volume")}
+            title={lane ? "Close the automation lane" : "Automation"}
+            aria-label="Automation"
+          >
+            A
+          </button>
+        </div>
       </div>
-      <div className="track-buttons">
-        <button className={`chip ${track.mix.mute ? "on" : ""}`} onClick={() => actions.toggleMute(trackId)} title="Mute">
-          M
-        </button>
-        <button className={`chip ${track.mix.solo ? "on solo" : ""}`} onClick={() => actions.toggleSolo(trackId)} title="Solo">
-          S
-        </button>
-      </div>
+      {lane && (
+        <div className="lane-header" style={{ height: LANE_H }}>
+          <select className="select" value={lane} onChange={(e) => setLane(trackId, e.target.value as MixAutomationParam)} aria-label="Automated parameter">
+            {MIX_AUTOMATION_PARAMS.map((p) => (
+              <option key={p} value={p}>
+                {AUTOMATION_RANGES[p].label}
+                {track.automation[p]?.points.length ? " •" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
     </div>
   );
 }
 
 function Toolbar() {
-  const snap = useUiStore((s) => s.snapTicks);
+  const snap = useUiStore((s) => s.snap);
   const setSnap = useUiStore((s) => s.setSnap);
-  const tpb = useSongStore((s) => ticksPerBar(s.doc.meta.timeSig));
 
   return (
     <div className="toolbar">
@@ -155,13 +196,9 @@ function Toolbar() {
       </div>
       <label className="toolbar-group">
         <span className="muted small">Snap</span>
-        <select
-          className="select"
-          value={SNAP_OPTIONS.findIndex((o) => o.ticks(tpb) === snap)}
-          onChange={(e) => setSnap(SNAP_OPTIONS[Number(e.target.value)]!.ticks(tpb))}
-        >
-          {SNAP_OPTIONS.map((o, i) => (
-            <option key={o.label} value={i}>
+        <select className="select" value={snap} onChange={(e) => setSnap(e.target.value as SnapName)}>
+          {SNAP_OPTIONS.map((o) => (
+            <option key={o.name} value={o.name}>
               {o.label}
             </option>
           ))}
@@ -179,7 +216,7 @@ function Toolbar() {
         </button>
       </div>
       <span className="muted small toolbar-hint">
-        Double-click a lane to add a clip · drag to move · edge to resize · D duplicates · U unlinks · Del deletes
+        Double-click a lane to add a clip · drag to move · edge to resize · A opens automation · D duplicates · U unlinks · Del deletes
       </span>
     </div>
   );

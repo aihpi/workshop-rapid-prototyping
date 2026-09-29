@@ -4,8 +4,8 @@ import { useUiStore } from "./uiStore.ts";
 export { History } from "./history.ts";
 export { useSongStore } from "./songStore.ts";
 export type { SongState } from "./songStore.ts";
-export { selectEditingPattern, useUiStore } from "./uiStore.ts";
-export type { PaneTab, SaveState, SongSummary, UiState } from "./uiStore.ts";
+export { selectEditingPattern, selectSoundTrackId, useUiStore } from "./uiStore.ts";
+export type { CountIn, LoopRegion, PaneTab, SaveState, SongSummary, UiState } from "./uiStore.ts";
 
 /**
  * Cross-store wiring, called once from `main.tsx` at module scope. Whenever the

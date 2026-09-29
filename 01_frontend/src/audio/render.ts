@@ -2,6 +2,7 @@ import { ops, PPQ } from "@hpi/shared";
 import type { SongDoc } from "@hpi/shared";
 import * as Tone from "tone";
 
+import { scheduleAllAutomation } from "./automation.ts";
 import { buildGraph } from "./buildGraph.ts";
 import { createPart } from "./parts.ts";
 import { audioBufferChannels, wavBlob } from "./wav.ts";
@@ -31,6 +32,7 @@ export async function renderSong(doc: SongDoc): Promise<Blob> {
       const pattern = doc.patterns[clip.patternId];
       if (pattern) createPart(clip, pattern, graph);
     }
+    scheduleAllAutomation(graph, doc, 0, 0);
     transport.start(0);
   }, seconds);
   const audio = buffer.get();

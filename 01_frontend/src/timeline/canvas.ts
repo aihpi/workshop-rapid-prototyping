@@ -1,7 +1,9 @@
 import type { Section, TimeSig } from "@hpi/shared";
-import { ticksPerBar } from "@hpi/shared";
+import { STEP_TICKS, ticksPerBar } from "@hpi/shared";
 
-import { gridDensity, RULER_H, ROW_H, tickToPx, visibleBarRange } from "./geometry.ts";
+import type { LoopRegion } from "../state/index.ts";
+import { gridDensity, LOOP_H, LOOP_HANDLE, LOOP_Y, RULER_H, ROW_H, tickToPx, visibleBarRange } from "./geometry.ts";
+import type { Row } from "./geometry.ts";
 import { resolveSwatch } from "./swatch.ts";
 
 /**
@@ -12,6 +14,7 @@ import { resolveSwatch } from "./swatch.ts";
  */
 export type Palette = {
   bg: string;
+  bgLane: string;
   line: string;
   lineStrong: string;
   text: string;
@@ -37,7 +40,7 @@ function prepare(canvas: HTMLCanvasElement, width: number, height: number, dpr: 
   return ctx;
 }
 
-export function drawRuler(canvas: HTMLCanvasElement, view: View, sections: readonly Section[], palette: Palette): void {
+export function drawRuler(canvas: HTMLCanvasElement, view: View, sections: readonly Section[], loop: LoopRegion, palette: Palette): void {
   const ctx = prepare(canvas, view.width, RULER_H, view.dpr);
   const tpb = ticksPerBar(view.timeSig);
   const { pxPerBar, scrollLeft, width } = view;
@@ -46,45 +49,57 @@ export function drawRuler(canvas: HTMLCanvasElement, view: View, sections: reado
   ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, width, RULER_H);
 
-  // Sections as bands across the top half.
-  const bandH = 16;
+  // Sections: a swatch underline and an ink name, not a filled band. Ink on
+  // white reads at any tint; white on a 25 % tint does not.
   ctx.font = `500 11px ${palette.font}`;
-  ctx.textBaseline = "middle";
+  ctx.textBaseline = "alphabetic";
   for (const section of sections) {
     const x0 = tickToPx(section.startTick, pxPerBar, tpb) - scrollLeft;
     const x1 = tickToPx(section.endTick, pxPerBar, tpb) - scrollLeft;
     if (x1 < 0 || x0 > width) continue;
     ctx.fillStyle = resolveSwatch(section.colour);
-    ctx.fillRect(x0, 4, Math.max(2, x1 - x0 - 2), bandH);
+    ctx.fillRect(x0, 2, Math.max(2, x1 - x0 - 2), 3);
     if (x1 - x0 > 28) {
-      ctx.fillStyle = palette.bg;
+      ctx.fillStyle = palette.text;
       ctx.save();
       ctx.beginPath();
-      ctx.rect(x0 + 6, 4, x1 - x0 - 14, bandH);
+      ctx.rect(x0 + 4, 5, x1 - x0 - 10, 14);
       ctx.clip();
-      ctx.fillText(section.name, Math.max(x0 + 6, 6), 4 + bandH / 2);
+      ctx.fillText(section.name, Math.max(x0 + 4, 4), 16);
       ctx.restore();
     }
   }
 
-  // Bar numbers and ticks along the bottom half.
+  // The loop brace: ink while looping, grey while the region is only remembered.
+  if (loop.endTick > loop.startTick + 1) {
+    const x0 = tickToPx(loop.startTick, pxPerBar, tpb) - scrollLeft;
+    const x1 = tickToPx(loop.endTick, pxPerBar, tpb) - scrollLeft;
+    if (x1 >= 0 && x0 <= width) {
+      ctx.fillStyle = loop.enabled ? palette.text : palette.lineStrong;
+      const mid = LOOP_Y + LOOP_H / 2;
+      ctx.fillRect(x0, mid - 1, x1 - x0, 2);
+      ctx.fillRect(x0, LOOP_Y, LOOP_HANDLE, LOOP_H);
+      ctx.fillRect(x1 - LOOP_HANDLE, LOOP_Y, LOOP_HANDLE, LOOP_H);
+    }
+  }
+
+  // Bar numbers and ticks along the bottom.
   const [first, last] = visibleBarRange(scrollLeft, width, pxPerBar);
   ctx.font = `11px ${palette.font}`;
-  ctx.textBaseline = "alphabetic";
   for (let bar = first; bar <= last; bar++) {
     const x = bar * pxPerBar - scrollLeft;
     ctx.fillStyle = palette.lineStrong;
-    ctx.fillRect(Math.round(x), RULER_H - 12, 1, 12);
+    ctx.fillRect(Math.round(x), RULER_H - 10, 1, 10);
     if (bar % density.labelEvery === 0) {
-      ctx.fillStyle = palette.text;
-      ctx.fillText(String(bar + 1), Math.round(x) + 4, RULER_H - 4);
+      ctx.fillStyle = palette.textMuted;
+      ctx.fillText(String(bar + 1), Math.round(x) + 4, RULER_H - 3);
     }
     if (density.beats) {
       const beats = view.timeSig[0];
       for (let beat = 1; beat < beats; beat++) {
         const bx = x + (beat / beats) * pxPerBar;
         ctx.fillStyle = palette.line;
-        ctx.fillRect(Math.round(bx), RULER_H - 6, 1, 6);
+        ctx.fillRect(Math.round(bx), RULER_H - 5, 1, 5);
       }
     }
   }
@@ -92,8 +107,7 @@ export function drawRuler(canvas: HTMLCanvasElement, view: View, sections: reado
   ctx.fillRect(0, RULER_H - 1, width, 1);
 }
 
-export function drawGrid(canvas: HTMLCanvasElement, view: View, rows: number, palette: Palette): void {
-  const height = Math.max(rows * ROW_H, 1);
+export function drawGrid(canvas: HTMLCanvasElement, view: View, rows: readonly Row[], height: number, palette: Palette): void {
   const ctx = prepare(canvas, view.width, height, view.dpr);
   const { pxPerBar, scrollLeft, width } = view;
   const density = gridDensity(pxPerBar);
@@ -101,7 +115,14 @@ export function drawGrid(canvas: HTMLCanvasElement, view: View, rows: number, pa
 
   ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, width, height);
+  for (const row of rows) {
+    if (row.lane) {
+      ctx.fillStyle = palette.bgLane;
+      ctx.fillRect(0, row.top + ROW_H, width, row.height - ROW_H);
+    }
+  }
 
+  // Every line at full alpha: a translucent hairline vanishes on white.
   const [first, last] = visibleBarRange(scrollLeft, width, pxPerBar);
   for (let bar = first; bar <= last; bar++) {
     const x = bar * pxPerBar - scrollLeft;
@@ -114,17 +135,20 @@ export function drawGrid(canvas: HTMLCanvasElement, view: View, rows: number, pa
       }
     }
     if (density.sixteenths) {
-      const per = beats * 4;
+      // Sixteenths per bar from the tick count, so 6/8 gets 12, not 24.
+      const per = ticksPerBar(view.timeSig) / STEP_TICKS;
+      const perBeat = per / beats;
       for (let s = 1; s < per; s++) {
-        if (s % 4 === 0) continue;
+        if (s % perBeat === 0) continue;
         ctx.fillStyle = palette.line;
-        ctx.globalAlpha = 0.45;
         ctx.fillRect(Math.round(x + (s / per) * pxPerBar), 0, 1, height);
-        ctx.globalAlpha = 1;
       }
     }
   }
 
   ctx.fillStyle = palette.line;
-  for (let row = 1; row <= rows; row++) ctx.fillRect(0, row * ROW_H - 1, width, 1);
+  for (const row of rows) {
+    if (row.lane) ctx.fillRect(0, row.top + ROW_H - 1, width, 1);
+    ctx.fillRect(0, row.top + row.height - 1, width, 1);
+  }
 }

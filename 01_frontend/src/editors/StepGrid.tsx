@@ -72,7 +72,7 @@ const Lane = memo(function Lane({ pattern, pitch, row, steps }: LaneProps) {
           <button
             key={i}
             className={`step ${note ? "on" : ""} ${i % 4 === 0 ? "beat" : ""}`}
-            style={{ width: PX_PER_STEP, opacity: note ? 0.45 + note.velocity * 0.55 : undefined }}
+            style={{ width: PX_PER_STEP, ...(note ? { ["--vel" as string]: note.velocity } : {}) }}
             aria-label={`step ${i + 1}${note ? ", on" : ""}`}
             onClick={(e) => {
               if (e.shiftKey && note) editorActions.cycleVelocity(pattern.id, note.id);

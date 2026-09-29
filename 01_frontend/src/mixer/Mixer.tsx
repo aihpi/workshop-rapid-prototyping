@@ -1,3 +1,4 @@
+import { laneIsActive } from "@hpi/shared";
 import type { Track } from "@hpi/shared";
 import { memo } from "react";
 
@@ -6,10 +7,9 @@ import { useSongStore } from "../state/index.ts";
 import { actions } from "../timeline/actions.ts";
 import { swatchCss } from "../timeline/swatch.ts";
 import { Fader } from "./Fader.tsx";
+import { db, pan } from "./format.ts";
+import { Meter } from "./Meter.tsx";
 import { mixerActions } from "./mixerActions.ts";
-
-const db = (v: number) => `${v > 0 ? "+" : ""}${v.toFixed(1)} dB`;
-const pan = (v: number) => (Math.abs(v) < 0.01 ? "C" : `${Math.round(Math.abs(v) * 100)}${v < 0 ? "L" : "R"}`);
 
 /** One strip per track, master on the right. */
 export function Mixer() {
@@ -25,6 +25,7 @@ export function Mixer() {
         <span className="muted small">compressor · limiter</span>
         <div className="strip-fader">
           <Fader label="Master" value={master} min={-60} max={6} step={0.5} vertical format={db} onChange={mixerActions.setMasterVolume} />
+          <Meter meterKey="master" />
         </div>
       </div>
     </div>
@@ -49,9 +50,11 @@ function StripView({ track }: { track: Track }) {
       <Fader label="Pan" value={track.mix.pan} min={-1} max={1} step={0.02} format={pan} onChange={(v) => mixerActions.setPan(id, v)} />
       <Fader label="Reverb" value={track.mix.sends.reverb} min={0} max={1} step={0.01} onChange={(v) => mixerActions.setSend(id, "reverb", v)} />
       <Fader label="Delay" value={track.mix.sends.delay} min={0} max={1} step={0.01} onChange={(v) => mixerActions.setSend(id, "delay", v)} />
-      <div className="strip-fader">
+      <div className="strip-fader" title={laneIsActive(track.automation["volume"]) ? "Volume follows its automation lane" : undefined}>
         <Fader label="Volume" value={track.mix.volume} min={-60} max={6} step={0.5} vertical format={db} onChange={(v) => mixerActions.setVolume(id, v)} />
+        <Meter meterKey={id} />
       </div>
+      {laneIsActive(track.automation["volume"]) && <span className="muted small">automated</span>}
       <div className="track-buttons">
         <button className={`chip ${track.mix.mute ? "on" : ""}`} onClick={() => actions.toggleMute(id)} title="Mute">
           M

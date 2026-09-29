@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ensureAudio, envelope, preview, Recorder, silenceBounds } from "../audio/index.ts";
+import { decodeFile, ensureAudio, envelope, preview, Recorder, silenceBounds } from "../audio/index.ts";
 import { useSongStore } from "../state/index.ts";
 import { cssVar } from "../timeline/swatch.ts";
 import { importSample, removeSample, saveSample, shape, unreferencedServerSamples, useSampleOn } from "./sampleActions.ts";
@@ -51,6 +51,22 @@ export function SamplesPanel() {
     }
   };
 
+  /** A file from disk lands in the same trimmed-and-ready state as a recording. */
+  const importFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    try {
+      await ensureAudio();
+      const cap = await decodeFile(file);
+      setCapture(cap);
+      setShaping({ startSec: 0, endSec: cap.durationSec, normalised: false, reversed: false });
+      setName(file.name.replace(/\.[^.]+$/, ""));
+      setPhase("captured");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Could not read that file: ${String(e)}`);
+    }
+  };
+
   const save = async () => {
     if (!capture) return;
     setPhase("saving");
@@ -71,6 +87,22 @@ export function SamplesPanel() {
             <button className="button record" onClick={() => void record()} disabled={phase === "saving"}>
               ● Record
             </button>
+          )}
+          {phase !== "recording" && (
+            <label className="button ghost" title="Any audio file the browser can decode. It is saved as a WAV.">
+              Import file
+              <input
+                type="file"
+                accept="audio/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  // Reset so picking the same file again still fires a change event.
+                  e.target.value = "";
+                  void importFile(file);
+                }}
+              />
+            </label>
           )}
           {capture && phase === "captured" && (
             <>
@@ -93,7 +125,7 @@ export function SamplesPanel() {
             </>
           )}
           {error && <span className="linked-notice">{error}</span>}
-          {phase === "idle" && !capture && !error && <span className="muted small">Record a one-shot from your microphone, trim it, and play it from any track.</span>}
+          {phase === "idle" && !capture && !error && <span className="muted small">Record a one-shot from your microphone or import a file, trim it, and play it from any track.</span>}
         </div>
         {capture && <Waveform capture={capture} shaping={shaping} onChange={setShaping} />}
       </section>
@@ -121,10 +153,10 @@ function Waveform({ capture, shaping, onChange }: { capture: Capture; shaping: S
     const x1 = (shaping.endSec / capture.durationSec) * width;
     for (let x = 0; x < width; x++) {
       const h = Math.max(1, env[x]! * (height - 8));
-      ctx.fillStyle = x >= x0 && x <= x1 ? cssVar("--accent") : cssVar("--grid-line-strong");
+      ctx.fillStyle = x >= x0 && x <= x1 ? cssVar("--fg-muted") : cssVar("--grid-line");
       ctx.fillRect(x, (height - h) / 2, 1, h);
     }
-    ctx.fillStyle = cssVar("--hpi-orange");
+    ctx.fillStyle = cssVar("--fg");
     ctx.fillRect(Math.round(x0), 0, 2, height);
     ctx.fillRect(Math.round(x1) - 2, 0, 2, height);
   }, [capture, shaping]);

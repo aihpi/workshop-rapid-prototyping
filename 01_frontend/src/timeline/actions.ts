@@ -1,8 +1,9 @@
-import { newId, ops, STEP_TICKS, ticksPerBar } from "@hpi/shared";
-import type { InstrumentKind, TrackKind } from "@hpi/shared";
+import { makeTrack, newId, ops, ticksPerBar } from "@hpi/shared";
+import type { InstrumentKind, SongMeta, TrackKind } from "@hpi/shared";
 
 import { download, engine, renderSong, withAudio } from "../audio/index.ts";
 import { useSongStore, useUiStore } from "../state/index.ts";
+import type { CountIn, LoopRegion } from "../state/index.ts";
 
 /**
  * Everything the timeline can do to the song, as named undo steps. Components
@@ -81,14 +82,16 @@ export const actions = {
     const id = newId();
     const index = song().doc.trackOrder.length;
     song().apply("Add track", (d) => {
-      ops.addTrack(d, {
-        id,
-        name,
-        kind,
-        colour: { hue: (["red", "orange", "yellow", "grey"] as const)[index % 4]!, shade: ([100, 75, 50, 25] as const)[Math.floor(index / 4) % 4]! },
-        instrument: { kind: instrument, params: {} },
-        mix: { volume: 0, pan: 0, mute: false, solo: false, sends: { reverb: 0, delay: 0 } },
-      });
+      ops.addTrack(
+        d,
+        makeTrack({
+          id,
+          name,
+          kind,
+          colour: { hue: (["red", "orange", "yellow", "grey"] as const)[index % 4]!, shade: ([100, 75, 50, 25] as const)[Math.floor(index / 4) % 4]! },
+          instrument: { kind: instrument, params: {} },
+        }),
+      );
     });
   },
 
@@ -125,18 +128,80 @@ export const actions = {
   },
 
   play: withAudio(() => {
-    engine.play();
+    engine.play(ui().countInBars);
     ui().setPlaying(true);
   }),
 
   stop(): void {
     engine.stop();
     ui().setPlaying(false);
+    ui().setRecording(false);
   },
 
   togglePlay(): void {
     if (ui().isPlaying) actions.stop();
     else actions.play();
+  },
+
+  /** Arming record also starts playback, so a take can begin on the count-in. */
+  toggleRecord: withAudio(() => {
+    if (ui().isRecording) {
+      actions.stop();
+      return;
+    }
+    ui().setRecording(true);
+    if (!ui().isPlaying) {
+      engine.play(ui().countInBars);
+      ui().setPlaying(true);
+    }
+  }),
+
+  setLoop(loop: Partial<LoopRegion>): void {
+    ui().setLoop(loop);
+    engine.setLoop(ui().loop);
+  },
+
+  /** With no region marked yet, the loop covers the selected clips or the first four bars. */
+  toggleLoop(): void {
+    const loop = ui().loop;
+    if (!loop.enabled && loop.endTick <= loop.startTick + 1) actions.loopToSelection(true);
+    else actions.setLoop({ enabled: !loop.enabled });
+  },
+
+  loopToSelection(enable = true): void {
+    const doc = song().doc;
+    const clips = ui()
+      .selectedClipIds.map((id) => doc.clips[id])
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+    const bar = ticksPerBar(doc.meta.timeSig);
+    // Selection bounds, else the song's first four bars (at least one).
+    const fallbackEnd = Math.min(Math.max(ops.songEndTick(doc), bar), 4 * bar);
+    const startTick = clips.length ? Math.min(...clips.map((c) => c.startTick)) : 0;
+    const endTick = clips.length ? Math.max(...clips.map((c) => c.startTick + c.lengthTicks)) : fallbackEnd;
+    actions.setLoop({ enabled: enable, startTick, endTick });
+  },
+
+  toggleMetronome(): void {
+    const on = !ui().metronome;
+    ui().setMetronome(on);
+    engine.setMetronome(on);
+  },
+
+  setCountIn(bars: CountIn): void {
+    ui().setCountIn(bars);
+  },
+
+  cycleCountIn(): void {
+    actions.setCountIn(((ui().countInBars + 1) % 3) as CountIn);
+  },
+
+  setBpm(bpm: number): void {
+    if (!Number.isFinite(bpm)) return;
+    song().apply("Tempo", (d) => ops.setBpm(d, Math.min(300, Math.max(20, Math.round(bpm)))));
+  },
+
+  setTimeSig(timeSig: SongMeta["timeSig"]): void {
+    song().apply("Time signature", (d) => ops.setTimeSig(d, timeSig));
   },
 
   zoomBy(factor: number): void {
@@ -173,10 +238,3 @@ export const actions = {
   },
 };
 
-export const SNAP_OPTIONS: readonly { label: string; ticks: (ticksPerBar: number) => number }[] = [
-  { label: "Bar", ticks: (tpb) => tpb },
-  { label: "Beat", ticks: (tpb) => tpb / 4 },
-  { label: "1/8", ticks: (tpb) => tpb / 8 },
-  { label: "1/16", ticks: () => STEP_TICKS },
-  { label: "Off", ticks: () => 0 },
-];

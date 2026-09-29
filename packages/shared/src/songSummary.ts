@@ -3,9 +3,10 @@
 // convention as the ops it may emit and names every id it may reference.
 // Roughly 1.6k tokens for the demo; a budget guard trims detail past 6k chars.
 
+import { EFFECT_SPECS } from "./effectSpecs.ts";
 import { INSTRUMENT_SPECS } from "./instrumentSpecs.ts";
 import { DRUM_LANES, DRUM_VOICES, STEP_TICKS, midiToNoteName, ticksPerBar } from "./music.ts";
-import type { Pattern, SongDoc } from "./song.ts";
+import type { Effect, Pattern, SongDoc, Track } from "./song.ts";
 
 const PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
 
@@ -56,7 +57,7 @@ function render(doc: SongDoc, focus: readonly string[], detail: Detail): string 
       .join(",");
     const m = t.mix;
     const flags = `${m.mute ? " muted" : ""}${m.solo ? " solo" : ""}`;
-    lines.push(`  ${t.id} "${t.name}" kind=${t.kind} instrument=${t.instrument.kind}{${params}} vol=${m.volume}dB pan=${m.pan} reverb=${m.sends.reverb} delay=${m.sends.delay}${flags}`);
+    lines.push(`  ${t.id} "${t.name}" kind=${t.kind} instrument=${t.instrument.kind}{${params}} vol=${m.volume}dB pan=${m.pan} reverb=${m.sends.reverb} delay=${m.sends.delay}${flags}${effectsSummary(t, detail.lanes)}${automationSummary(t, detail.lanes ? BAR : null)}`);
   }
 
   lines.push("", "patterns:");
@@ -96,6 +97,39 @@ function render(doc: SongDoc, focus: readonly string[], detail: Detail): string 
     }
   }
   return lines.join("\n");
+}
+
+/** `kind:id` per insert in chain order, so the model can reference the id. Params go with the lanes when the budget bites. */
+function effectsSummary(t: Track, withParams: boolean): string {
+  if (!t.effects.length) return "";
+  return ` fx=[${t.effects.map((e) => effectSummary(e, withParams)).join(",")}]`;
+}
+
+function effectSummary(e: Effect, withParams: boolean): string {
+  const state = e.enabled ? "" : "(off)";
+  if (!withParams) return `${e.kind}:${e.id}${state}`;
+  const params = EFFECT_SPECS[e.kind]
+    .filter((s) => e.params[s.key] !== undefined && e.params[s.key] !== s.default)
+    .map((s) => `${s.key}=${e.params[s.key]}`)
+    .join(",");
+  return `${e.kind}:${e.id}${state}{${params}}`;
+}
+
+/**
+ * Lanes with points only; the fader owns everything else. With the bar length
+ * the points are spelled out as bar:step=value, the shape setAutomation takes,
+ * because that op replaces the lane and the model must resend what it keeps.
+ */
+function automationSummary(t: Track, barTicks: number | null): string {
+  const lanes = Object.entries(t.automation)
+    .filter(([, lane]) => lane.points.length > 0)
+    .sort((a, b) => a[0].localeCompare(b[0]));
+  if (!lanes.length) return "";
+  const points = (lane: Track["automation"][string]) =>
+    barTicks === null
+      ? ""
+      : `[${lane.points.map((p) => `${Math.floor(p.tick / barTicks)}:${round((p.tick % barTicks) / STEP_TICKS)}=${round(p.value)}`).join(",")}]`;
+  return ` auto=${lanes.map(([param, lane]) => `${param}(${lane.points.length}pts)${points(lane)}`).join(",")}`;
 }
 
 /**

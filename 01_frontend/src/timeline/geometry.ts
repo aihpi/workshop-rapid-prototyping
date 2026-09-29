@@ -1,4 +1,5 @@
 import { snapTicks } from "@hpi/shared";
+import type { MixAutomationParam } from "@hpi/shared";
 
 // Every pixel/tick conversion in the timeline lives here, so zoom never leaks
 // into gesture code and the maths can be tested without a DOM.
@@ -6,10 +7,52 @@ import { snapTicks } from "@hpi/shared";
 export const HEADER_W = 168;
 export const RULER_H = 40;
 export const ROW_H = 64;
+/** An open automation lane adds this much under its track. */
+export const LANE_H = 56;
 export const CLIP_PAD = 6;
 export const RESIZE_HANDLE_W = 10;
 /** Pointer travel before a press becomes a drag rather than a click. */
 export const DRAG_THRESHOLD_PX = 3;
+/** The loop brace's band in the ruler, and its square handles. */
+export const LOOP_Y = 20;
+export const LOOP_H = 8;
+export const LOOP_HANDLE = 7;
+
+export type Row = { trackId: string; top: number; height: number; lane: MixAutomationParam | null };
+
+/** Rows are no longer uniform once a lane is open, so every y lookup goes through this. */
+export function rowLayout(trackOrder: readonly string[], lanes: Readonly<Record<string, MixAutomationParam>>): Row[] {
+  let top = 0;
+  return trackOrder.map((trackId) => {
+    const lane = lanes[trackId] ?? null;
+    const height = ROW_H + (lane ? LANE_H : 0);
+    const row = { trackId, top, height, lane };
+    top += height;
+    return row;
+  });
+}
+
+export const layoutHeight = (rows: readonly Row[]): number => Math.max(ROW_H, rows.reduce((h, r) => h + r.height, 0));
+
+/** The track row under y, and whether the point is in its clip area rather than its lane. */
+export function rowAtY(y: number, rows: readonly Row[]): { row: Row; inClips: boolean } | null {
+  const row = rows.find((r) => y >= r.top && y < r.top + r.height);
+  return row ? { row, inClips: y < row.top + ROW_H } : null;
+}
+
+/** Which loop handle a ruler press lands on, if any. */
+export function loopHandleAt(x: number, y: number, startPx: number, endPx: number): "start" | "end" | null {
+  if (y < LOOP_Y - 3 || y > LOOP_Y + LOOP_H + 3) return null;
+  const near = LOOP_HANDLE + 2;
+  if (Math.abs(x - endPx) <= near) return "end";
+  if (Math.abs(x - startPx) <= near) return "start";
+  return null;
+}
+
+/** Vertical position of a lane value, 0 at the top of the lane. */
+export const valueToLaneY = (value: number, min: number, max: number, laneH: number): number => ((max - value) / (max - min)) * laneH;
+export const laneYToValue = (y: number, min: number, max: number, laneH: number): number =>
+  Math.min(max, Math.max(min, max - (y / laneH) * (max - min)));
 
 export const tickToPx = (tick: number, pxPerBar: number, ticksPerBar: number): number =>
   (tick / ticksPerBar) * pxPerBar;
@@ -41,11 +84,6 @@ export function gridDensity(pxPerBar: number): { beats: boolean; sixteenths: boo
     sixteenths: pxPerBar >= 220,
     labelEvery: pxPerBar >= 40 ? 1 : pxPerBar >= 20 ? 2 : 4,
   };
-}
-
-export function rowAt(y: number, rowCount: number): number | null {
-  const row = Math.floor(y / ROW_H);
-  return row >= 0 && row < rowCount ? row : null;
 }
 
 type Zoom = { pxPerBar: number; ticksPerBar: number; snap: number };

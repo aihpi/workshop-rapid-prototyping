@@ -1,10 +1,18 @@
-import { INSTRUMENT_LABELS, ticksPerBar } from "@hpi/shared";
+import { AUTOMATION_RANGES, EFFECT_LABELS, INSTRUMENT_LABELS, ticksPerBar } from "@hpi/shared";
 import type { AiOp, SongDoc } from "@hpi/shared";
 
-/** One human line per applied op, looked up against the document after the edit. */
-export function describeOp(op: AiOp, doc: SongDoc): string {
-  const track = (id: string) => doc.tracks[id]?.name ?? id;
+/**
+ * One human line per applied op, looked up against the document after the
+ * edit. Things the op removed are gone from that document, so `before` (the
+ * document the batch started from) answers for those.
+ */
+export function describeOp(op: AiOp, doc: SongDoc, before: SongDoc = doc): string {
+  const track = (id: string) => doc.tracks[id]?.name ?? before.tracks[id]?.name ?? id;
   const pattern = (id: string) => doc.patterns[id]?.name ?? id;
+  const effect = (trackId: string, id: string) => {
+    const e = (doc.tracks[trackId]?.effects ?? []).concat(before.tracks[trackId]?.effects ?? []).find((x) => x.id === id);
+    return e ? EFFECT_LABELS[e.kind] : id;
+  };
   const clip = (id: string) => {
     const c = doc.clips[id];
     return c ? `${track(c.trackId)} clip at bar ${Math.floor(c.startTick / ticksPerBar(doc.meta.timeSig)) + 1}` : `clip ${id}`;
@@ -54,5 +62,21 @@ export function describeOp(op: AiOp, doc: SongDoc): string {
       return `Section "${op.name}" at bar ${op.bar + 1} for ${op.bars} bars`;
     case "renameSection":
       return `Section renamed to "${op.name}"`;
+    case "addEffect":
+      return `${track(op.trackId)}: added ${EFFECT_LABELS[op.kind]}`;
+    case "removeEffect":
+      return `${track(op.trackId)}: removed ${effect(op.trackId, op.effectId)}`;
+    case "setEffectParam":
+      return `${track(op.trackId)} ${effect(op.trackId, op.effectId)}: ${op.key} ${op.value}`;
+    case "setEffectEnabled":
+      return `${track(op.trackId)} ${effect(op.trackId, op.effectId)}: ${op.enabled ? "on" : "bypassed"}`;
+    case "setTimeSig":
+      return `Time signature ${op.beats}/${op.unit}`;
+    case "setAutomation": {
+      const lane = `${AUTOMATION_RANGES[op.param].label.toLowerCase()} automation`;
+      return `${track(op.trackId)}: ${lane}${op.points.length ? `, ${op.points.length} points` : " cleared"}`;
+    }
+    case "quantiseNotes":
+      return `${pattern(op.patternId)}: quantised to ${op.grid ?? "1/16"}`;
   }
 }

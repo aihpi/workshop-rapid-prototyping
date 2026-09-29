@@ -2,7 +2,8 @@
 // returns nothing, so the frontend can run one inside a single Immer `produce()`
 // and get exactly one undo step. Ids come from the caller.
 
-import type { Clip, Instrument, Mix, Note, Pattern, Section, SongDoc, Track } from "./song.ts";
+import { snapTicks } from "./music.ts";
+import type { AutomationPoint, Clip, Effect, Instrument, Mix, Note, Pattern, Section, SongDoc, SongMeta, Track } from "./song.ts";
 
 export function addTrack(doc: SongDoc, track: Track, atIndex?: number): void {
   doc.tracks[track.id] = track;
@@ -148,6 +149,99 @@ export function toggleStep(
   const existing = pattern.notes.findIndex((n) => n.pitch === pitch && n.start === start);
   if (existing >= 0) pattern.notes.splice(existing, 1);
   else pattern.notes.push({ id: newNoteId, start, duration, pitch, velocity });
+}
+
+/**
+ * Moves note starts toward the grid. Strength 1 lands on it, 0.5 goes halfway,
+ * the DAW convention. A note that would snap onto the pattern's end falls back
+ * one grid step so it never leaves the pattern. `noteIds` null means every note.
+ */
+export function quantiseNotes(doc: SongDoc, patternId: string, noteIds: readonly string[] | null, grid: number, strength = 1): void {
+  const pattern = doc.patterns[patternId];
+  if (!pattern || grid <= 0) return;
+  const chosen = noteIds === null ? null : new Set(noteIds);
+  for (const note of pattern.notes) {
+    if (chosen && !chosen.has(note.id)) continue;
+    let target = snapTicks(note.start, grid);
+    if (target >= pattern.lengthTicks) target -= grid;
+    note.start = Math.max(0, Math.round(note.start + (target - note.start) * strength));
+  }
+}
+
+export function setNoteVelocity(doc: SongDoc, patternId: string, noteIds: readonly string[], velocity: number): void {
+  const pattern = doc.patterns[patternId];
+  if (!pattern) return;
+  const chosen = new Set(noteIds);
+  const v = Math.min(1, Math.max(0, velocity));
+  for (const note of pattern.notes) if (chosen.has(note.id)) note.velocity = v;
+}
+
+export function addEffect(doc: SongDoc, trackId: string, effect: Effect, atIndex?: number): void {
+  const track = doc.tracks[trackId];
+  if (!track) return;
+  if (atIndex === undefined) track.effects.push(effect);
+  else track.effects.splice(atIndex, 0, effect);
+}
+
+export function removeEffect(doc: SongDoc, trackId: string, effectId: string): void {
+  const track = doc.tracks[trackId];
+  if (track) track.effects = track.effects.filter((e) => e.id !== effectId);
+}
+
+export function moveEffect(doc: SongDoc, trackId: string, effectId: string, toIndex: number): void {
+  const track = doc.tracks[trackId];
+  if (!track) return;
+  const from = track.effects.findIndex((e) => e.id === effectId);
+  if (from === -1) return;
+  const [effect] = track.effects.splice(from, 1);
+  track.effects.splice(Math.min(Math.max(0, toIndex), track.effects.length), 0, effect!);
+}
+
+export function setEffectEnabled(doc: SongDoc, trackId: string, effectId: string, enabled: boolean): void {
+  const effect = doc.tracks[trackId]?.effects.find((e) => e.id === effectId);
+  if (effect) effect.enabled = enabled;
+}
+
+export function setEffectParam(doc: SongDoc, trackId: string, effectId: string, key: string, value: number | string): void {
+  const effect = doc.tracks[trackId]?.effects.find((e) => e.id === effectId);
+  if (effect) effect.params[key] = value;
+}
+
+/** Adds a point or moves the one already at that tick. Points stay sorted. */
+export function setAutomationPoint(doc: SongDoc, trackId: string, param: string, tick: number, value: number): void {
+  const track = doc.tracks[trackId];
+  if (!track) return;
+  const lane = (track.automation[param] ??= { points: [] });
+  const existing = lane.points.find((p) => p.tick === tick);
+  if (existing) existing.value = value;
+  else {
+    lane.points.push({ tick, value });
+    lane.points.sort((a, b) => a.tick - b.tick);
+  }
+}
+
+/** Deleting the last point deletes the lane, so the fader owns the parameter again. */
+export function removeAutomationPoint(doc: SongDoc, trackId: string, param: string, tick: number): void {
+  const track = doc.tracks[trackId];
+  const lane = track?.automation[param];
+  if (!track || !lane) return;
+  lane.points = lane.points.filter((p) => p.tick !== tick);
+  if (lane.points.length === 0) delete track.automation[param];
+}
+
+/** Replaces a whole lane. Later duplicates of a tick win; an empty list clears the lane. */
+export function setAutomationLane(doc: SongDoc, trackId: string, param: string, points: readonly AutomationPoint[]): void {
+  const track = doc.tracks[trackId];
+  if (!track) return;
+  const byTick = new Map<number, number>();
+  for (const p of points) byTick.set(p.tick, p.value);
+  const sorted = [...byTick.entries()].sort((a, b) => a[0] - b[0]).map(([tick, value]) => ({ tick, value }));
+  if (sorted.length === 0) delete track.automation[param];
+  else track.automation[param] = { points: sorted };
+}
+
+export function setTimeSig(doc: SongDoc, timeSig: SongMeta["timeSig"]): void {
+  doc.meta.timeSig = timeSig;
 }
 
 export function setBpm(doc: SongDoc, bpm: number): void {

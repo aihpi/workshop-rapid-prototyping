@@ -4,9 +4,18 @@ import type { SongDoc } from "./song.ts";
 // Every document that enters the app, whether from the API, a file import or
 // localStorage, passes through here. Older schema versions are stepped forward
 // one version at a time before the final parse, so a v3 client can still open a
-// v1 song. Today there is only v1; the chain exists so v2 has somewhere to go.
+// v1 song.
 const steps: Record<number, (doc: Record<string, unknown>) => Record<string, unknown>> = {
-  // 1: (doc) => ({ ...doc, schemaVersion: 2, newField: defaultValue }),
+  // v2 gave every track an insert chain and automation lanes.
+  1: (doc) => {
+    const tracks = Object.fromEntries(
+      Object.entries((doc["tracks"] ?? {}) as Record<string, Record<string, unknown>>).map(([id, track]) => [
+        id,
+        { ...track, effects: [], automation: {} },
+      ]),
+    );
+    return { ...doc, schemaVersion: 2, tracks };
+  },
 };
 
 export function migrateSong(raw: unknown): SongDoc {

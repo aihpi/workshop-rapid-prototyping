@@ -8,7 +8,8 @@ import { swatchCss } from "./swatch.ts";
 
 type Props = {
   clip: Clip;
-  row: number;
+  /** Top of the clip's track row, from `rowLayout`. */
+  top: number;
   onPointerDown: (e: React.PointerEvent<HTMLElement>, clipId: string, mode: "move" | "resize") => void;
 };
 
@@ -17,7 +18,7 @@ type Props = {
  * from ticks. Memoised on the clip object, so a note edit that leaves this
  * clip's reference alone does not re-render it.
  */
-export const ClipView = memo(function ClipView({ clip, row, onPointerDown }: Props) {
+export const ClipView = memo(function ClipView({ clip, top, onPointerDown }: Props) {
   const pxPerBar = useUiStore((s) => s.pxPerBar);
   const selected = useUiStore((s) => s.selectedClipIds.includes(clip.id));
   const editing = useUiStore((s) => s.editingClipId === clip.id);
@@ -38,7 +39,7 @@ export const ClipView = memo(function ClipView({ clip, row, onPointerDown }: Pro
       className={className}
       data-clip-id={clip.id}
       style={{
-        transform: `translate(${x}px, ${row * ROW_H + CLIP_PAD}px)`,
+        transform: `translate(${x}px, ${top + CLIP_PAD}px)`,
         width: w - 1,
         height: ROW_H - CLIP_PAD * 2,
         ["--clip-colour" as string]: swatchCss(track.colour),

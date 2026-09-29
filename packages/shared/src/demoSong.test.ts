@@ -37,6 +37,16 @@ describe("demo song", () => {
     for (const t of Object.values(song.tracks)) expect(["red", "orange", "yellow", "grey"]).toContain(t.colour.hue);
   });
 
+  it("ships one insert effect and one automation lane so both are visible on first load", () => {
+    expect(song.tracks["drums"]!.effects.map((e) => e.kind)).toEqual(["compressor"]);
+    expect(song.tracks["keys"]!.automation["volume"]!.points).toHaveLength(2);
+    const others = Object.values(song.tracks).filter((t) => t.id !== "drums" && t.id !== "keys");
+    for (const t of others) {
+      expect(t.effects).toEqual([]);
+      expect(t.automation).toEqual({});
+    }
+  });
+
   it("is deterministic", () => {
     expect(demoSong()).toEqual(song);
   });

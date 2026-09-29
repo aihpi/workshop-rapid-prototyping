@@ -2,7 +2,7 @@ import { swatchForIndex } from "./colour.ts";
 import type { HpiSwatch } from "./colour.ts";
 import type { Instrument, InstrumentKind, Mix, SongDoc, Track, TrackKind } from "./song.ts";
 
-export const SCHEMA_VERSION = 1 as const;
+export const SCHEMA_VERSION = 2 as const;
 
 export const defaultMix = (): Mix => ({
   volume: 0,
@@ -44,5 +44,7 @@ export function makeTrack(input: {
     colour: input.colour ?? swatchForIndex(input.index ?? 0),
     instrument: input.instrument ?? defaultInstrument(input.kind === "drum" ? "kit" : "poly"),
     mix: defaultMix(),
+    effects: [],
+    automation: {},
   };
 }

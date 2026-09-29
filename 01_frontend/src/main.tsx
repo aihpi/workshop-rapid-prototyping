@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
 import { engine, reconcile } from "./audio/index.ts";
+import { installNoteInput } from "./input/noteInput.ts";
 import { bootstrap } from "./persistence/songs.ts";
 import { useSongStore, wireStores } from "./state/index.ts";
 import "./styles/hpi.css";
@@ -14,8 +15,12 @@ useSongStore.getState().load(demoSong());
 wireStores();
 useSongStore.subscribe(
   (s) => s.doc,
-  (next, prev) => reconcile(prev, next, engine),
+  (next, prev) => {
+    engine.setDocument(next);
+    reconcile(prev, next, engine);
+  },
 );
+installNoteInput();
 void bootstrap();
 
 createRoot(document.getElementById("root")!).render(

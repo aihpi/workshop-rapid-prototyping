@@ -47,6 +47,33 @@ export const MixSchema = z.object({
   }),
 });
 
+export const EffectKindSchema = z.enum(["eq3", "compressor", "distortion", "chorus", "filter", "delay", "reverb"]);
+
+/** One insert device in a track's chain. Params are loose like instrument params; specs fill the gaps. */
+export const EffectSchema = z.object({
+  id,
+  kind: EffectKindSchema,
+  enabled: z.boolean(),
+  params: z.record(z.string(), z.union([z.number(), z.string()])),
+});
+
+export const AutomationPointSchema = z.object({
+  tick,
+  value: z.number(),
+});
+
+/** Points are kept sorted by tick; the ops that write them keep that invariant. */
+export const AutomationLaneSchema = z.object({
+  points: z.array(AutomationPointSchema),
+});
+
+/**
+ * The mix parameters a lane can drive. The record on the track is string-keyed
+ * so effect parameters can join later without a schema bump.
+ */
+export const MIX_AUTOMATION_PARAMS = ["volume", "pan", "sendReverb", "sendDelay"] as const;
+export type MixAutomationParam = (typeof MIX_AUTOMATION_PARAMS)[number];
+
 export const TrackSchema = z.object({
   id,
   name: z.string(),
@@ -54,6 +81,9 @@ export const TrackSchema = z.object({
   colour: HpiSwatchSchema,
   instrument: InstrumentSchema,
   mix: MixSchema,
+  /** Insert chain between the instrument and the channel, in signal order. */
+  effects: z.array(EffectSchema),
+  automation: z.record(z.string(), AutomationLaneSchema),
 });
 
 /**
@@ -99,7 +129,7 @@ export const SongMetaSchema = z.object({
 });
 
 export const SongDocSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   id,
   /** Bumped by the server on every save, for optimistic locking. */
   rev: z.number().int().min(0),
@@ -118,6 +148,10 @@ export type Pattern = z.infer<typeof PatternSchema>;
 export type InstrumentKind = z.infer<typeof InstrumentKindSchema>;
 export type Instrument = z.infer<typeof InstrumentSchema>;
 export type Mix = z.infer<typeof MixSchema>;
+export type EffectKind = z.infer<typeof EffectKindSchema>;
+export type Effect = z.infer<typeof EffectSchema>;
+export type AutomationPoint = z.infer<typeof AutomationPointSchema>;
+export type AutomationLane = z.infer<typeof AutomationLaneSchema>;
 export type Track = z.infer<typeof TrackSchema>;
 export type Clip = z.infer<typeof ClipSchema>;
 export type Section = z.infer<typeof SectionSchema>;

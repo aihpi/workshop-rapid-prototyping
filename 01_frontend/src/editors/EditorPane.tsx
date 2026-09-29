@@ -19,6 +19,8 @@ export function PatternEditor() {
   const scaleRoot = useUiStore((s) => s.scaleRoot);
   const scaleName = useUiStore((s) => s.scaleName);
   const setScale = useUiStore((s) => s.setScale);
+  const snapOn = useUiStore((s) => s.snap !== "off");
+  const selectedCount = useUiStore((s) => s.selectedNoteIds.length);
 
   if (!clip || !pattern || !track) {
     return <div className="pane-empty muted">Double-click a clip to edit its pattern, or double-click an empty lane to create one.</div>;
@@ -64,6 +66,14 @@ export function PatternEditor() {
             </select>
           </label>
         )}
+        <button
+          className="button ghost small"
+          onClick={editorActions.quantiseOpenPattern}
+          disabled={pattern.notes.length === 0}
+          title={`Move note starts onto the ${snapOn ? "snap" : "sixteenth"} grid (Q)`}
+        >
+          Quantise{selectedCount > 0 ? ` ${selectedCount}` : ""}
+        </button>
         {placements > 1 ? (
           <span className="linked-notice">
             ⧉ Shared by {placements} clips, edits change all of them.

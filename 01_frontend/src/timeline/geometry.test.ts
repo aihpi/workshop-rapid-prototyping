@@ -6,10 +6,18 @@ import {
   floorToGrid,
   followScroll,
   gridDensity,
+  LANE_H,
+  laneYToValue,
+  layoutHeight,
+  loopHandleAt,
+  LOOP_Y,
   pxToTick,
   resizeTargetTicks,
-  rowAt,
+  ROW_H,
+  rowAtY,
+  rowLayout,
   tickToPx,
+  valueToLaneY,
   visibleBarRange,
 } from "./geometry.ts";
 
@@ -42,12 +50,42 @@ describe("content and viewport", () => {
     expect(gridDensity(96)).toEqual({ beats: true, sixteenths: false, labelEvery: 1 });
     expect(gridDensity(16)).toEqual({ beats: false, sixteenths: false, labelEvery: 4 });
   });
+});
 
-  it("maps y to a track row and rejects the void below", () => {
-    expect(rowAt(10, 3)).toBe(0);
-    expect(rowAt(130, 3)).toBe(2);
-    expect(rowAt(300, 3)).toBeNull();
-    expect(rowAt(-1, 3)).toBeNull();
+describe("row layout with automation lanes", () => {
+  const rows = rowLayout(["a", "b", "c"], { b: "volume" });
+
+  it("stacks rows and makes the one with an open lane taller", () => {
+    expect(rows.map((r) => [r.top, r.height])).toEqual([
+      [0, ROW_H],
+      [ROW_H, ROW_H + LANE_H],
+      [2 * ROW_H + LANE_H, ROW_H],
+    ]);
+    expect(layoutHeight(rows)).toBe(3 * ROW_H + LANE_H);
+    expect(layoutHeight([])).toBe(ROW_H);
+  });
+
+  it("finds the row under y and tells clip area from lane", () => {
+    expect(rowAtY(ROW_H + 10, rows)).toEqual({ row: rows[1], inClips: true });
+    expect(rowAtY(2 * ROW_H + 10, rows)).toEqual({ row: rows[1], inClips: false });
+    expect(rowAtY(999, rows)).toBeNull();
+  });
+
+  it("maps lane values to pixels and back", () => {
+    expect(valueToLaneY(6, -60, 6, LANE_H)).toBe(0);
+    expect(valueToLaneY(-60, -60, 6, LANE_H)).toBe(LANE_H);
+    expect(laneYToValue(LANE_H / 2, -1, 1, LANE_H)).toBe(0);
+    expect(laneYToValue(-50, 0, 1, LANE_H)).toBe(1);
+  });
+});
+
+describe("loop handles", () => {
+  it("hits a handle only within its band, end wins when they overlap", () => {
+    expect(loopHandleAt(100, LOOP_Y + 2, 100, 300)).toBe("start");
+    expect(loopHandleAt(298, LOOP_Y + 2, 100, 300)).toBe("end");
+    expect(loopHandleAt(200, LOOP_Y + 2, 100, 300)).toBeNull();
+    expect(loopHandleAt(100, 2, 100, 300)).toBeNull();
+    expect(loopHandleAt(104, LOOP_Y, 100, 108)).toBe("end");
   });
 });
 

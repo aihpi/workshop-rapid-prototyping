@@ -199,6 +199,13 @@ export function demoSong(): SongDoc {
   ops.setSend(song, "lead", "delay", 0.35);
   ops.setSend(song, "lead", "reverb", 0.25);
 
+  // One insert and one lane, so both features are visible on first load.
+  ops.addEffect(song, "drums", { id: "drums-comp", kind: "compressor", enabled: true, params: { threshold: -18, ratio: 4 } });
+  ops.setAutomationLane(song, "keys", "volume", [
+    { tick: 0, value: -30 },
+    { tick: 2 * BAR, value: -8 },
+  ]);
+
   const patterns: Pattern[] = [
     pattern("drums-intro", "Intro hats", "drum", 2, drumsIntro()),
     pattern("drums-verse", "Verse beat", "drum", 4, drumsVerse()),

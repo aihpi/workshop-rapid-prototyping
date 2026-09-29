@@ -9,7 +9,7 @@ import { describeOp } from "./describeOp.ts";
 
 type Turn =
   | { role: "user"; content: string }
-  | { role: "assistant"; content: string; applied: AiOp[]; rejected: AiRejected[]; label: string | undefined; error: boolean };
+  | { role: "assistant"; content: string; applied: string[]; rejected: AiRejected[]; label: string | undefined; error: boolean };
 
 const MODEL_KEY = "hpi-studio.aiModel";
 const CONFIG_HINT = "AI is not configured. Copy .env.example to .env, set OPENAI_API_KEY and restart the API.";
@@ -22,7 +22,6 @@ const CONFIG_HINT = "AI is not configured. Copy .env.example to .env, set OPENAI
 export function AiDrawer() {
   const open = useUiStore((s) => s.aiOpen);
   const toggle = useUiStore((s) => s.toggleAi);
-  const doc = useSongStore((s) => s.doc);
   const undoLabel = useSongStore((s) => s.undoLabel);
   const undo = useSongStore((s) => s.undo);
   const [models, setModels] = useState<AiModels | "unreachable" | null>(null);
@@ -58,14 +57,17 @@ export function AiDrawer() {
     setDraft("");
     setPending(true);
     try {
-      const reply = await api.aiChat(history, useSongStore.getState().doc, model);
+      const before = useSongStore.getState().doc;
+      const reply = await api.aiChat(history, before, model);
       const result = aiActions.applyOps(prompt, reply.ops);
+      // Described once, here, with both documents to hand: a removed effect only has a name in `before`.
+      const after = useSongStore.getState().doc;
       setTurns((t) => [
         ...t,
         {
           role: "assistant",
           content: reply.message || (result.applied.length ? "Done." : "Nothing to change."),
-          applied: result.applied,
+          applied: result.applied.map((op: AiOp) => describeOp(op, after, before)),
           rejected: [...reply.rejected, ...result.rejected],
           label: result.applied.length ? aiLabel(prompt) : undefined,
           error: false,
@@ -126,8 +128,8 @@ export function AiDrawer() {
                     )}
                   </summary>
                   <ul>
-                    {t.applied.map((op, j) => (
-                      <li key={j}>{describeOp(op, doc)}</li>
+                    {t.applied.map((line, j) => (
+                      <li key={j}>{line}</li>
                     ))}
                   </ul>
                 </details>
