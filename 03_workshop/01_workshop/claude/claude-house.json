@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "bpm": 124,
+  "loopOn": true,
+  "patterns": {
+    "bass":  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    "kick":  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+    "snare": [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    "clap":  [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+    "chh":   [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+    "ohh":   [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+    "ltom":  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    "htom":  [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]
+  },
+  "vol": {
+    "bass": 0.78,
+    "kick": 0.9,
+    "snare": 0.78,
+    "clap": 0.85,
+    "chh": 0.6,
+    "ohh": 0.65,
+    "ltom": 0.78,
+    "htom": 0.78
+  },
+  "muted": {
+    "bass": false,
+    "kick": false,
+    "snare": false,
+    "clap": false,
+    "chh": false,
+    "ohh": false,
+    "ltom": false,
+    "htom": false
+  },
+  "fxParams": {
+    "bass":  { "tune": 0, "decay": 1.0,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0    },
+    "kick":  { "tune": 0, "decay": 0.9,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0.1, "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0.05 },
+    "snare": { "tune": 0, "decay": 1.0,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0    },
+    "clap":  { "tune": 0, "decay": 0.45, "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0.3  },
+    "chh":   { "tune": 0, "decay": 0.3,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 8000, "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0.05 },
+    "ohh":   { "tune": 0, "decay": 1.1,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 6000, "drive": 0,   "dlyTime": 0.25, "dlyFB": 0.2, "dlyWet": 0.06, "revWet": 0.1  },
+    "ltom":  { "tune": 0, "decay": 1.0,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0    },
+    "htom":  { "tune": 0, "decay": 1.0,  "lpFreq": 20000, "lpQ": 0.707, "hpFreq": 20,   "drive": 0,   "dlyTime": 0.25, "dlyFB": 0,   "dlyWet": 0,    "revWet": 0    }
+  },
+  "masterVol": 0.8,
+  "masterRevWet": 0.1,
+  "masterComp": {
+    "threshold": -12,
+    "ratio": 4,
+    "attack": 0.003,
+    "release": 0.1
+  }
+}

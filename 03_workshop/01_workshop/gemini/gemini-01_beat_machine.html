@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Audio Drum Machine</title>
+    <style>
+        :root {
+            --bg-color: #0f1117;
+            --panel-bg: #181b25;
+            --panel-border: #2a2f42;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --cell-off: #222634;
+            --cell-active: #6366f1;
+            --cell-playhead: #10b981;
+            --cell-active-playhead: #34d399;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 12px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            gap: 16px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        .controls-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
+        }
+
+        .btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: #374151;
+            box-shadow: none;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+
+        .btn.active {
+            background: #059669;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: #11131c;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .control-group label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .control-group input[type="range"] {
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .tempo-display {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Sequencer Grid Layout */
+        .sequencer {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .instrument-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #12151e;
+            padding: 8px;
+            border-radius: 10px;
+            border: 1px solid var(--panel-border);
+        }
+
+        .instrument-info {
+            width: 140px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+
+        .instrument-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .instrument-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mute-btn {
+            background: #2b3245;
+            color: var(--text-muted);
+            border: none;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .mute-btn.muted {
+            background: #dc2626;
+            color: white;
+        }
+
+        .vol-slider {
+            width: 70px;
+            height: 4px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .steps-container {
+            display: flex;
+            gap: 6px;
+            flex-grow: 1;
+        }
+
+        /* Visual group spacing every 4 steps */
+        .step-btn {
+            flex: 1;
+            min-width: 32px;
+            height: 44px;
+            background: var(--cell-off);
+            border: 1px solid #2e354a;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.1s, border-color 0.1s, transform 0.05s;
+        }
+
+        .step-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .step-btn:active {
+            transform: scale(0.95);
+        }
+
+        .step-btn.active {
+            background: var(--cell-active);
+            border-color: #818cf8;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+        }
+
+        .step-btn.playhead {
+            background: var(--cell-playhead) !important;
+            border-color: #6ee7b7 !important;
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.6);
+        }
+
+        .step-btn.active.playhead {
+            background: var(--cell-active-playhead) !important;
+            border-color: #a7f3d0 !important;
+            box-shadow: 0 0 15px rgba(52, 211, 153, 0.8);
+        }
+
+        /* Group separator margins for visual 4-step blocks */
+        .step-btn:nth-child(4n+1) {
+            margin-left: 6px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+            }
+            .instrument-info {
+                width: 110px;
+            }
+            .step-btn {
+                min-width: 26px;
+                height: 38px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1><span>Web</span> Drum Machine</h1>
+            <div class="controls-toolbar">
+                <button id="playBtn" class="btn">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    Play / Stop
+                </button>
+                <button id="loopBtn" class="btn btn-secondary active">Loop: ON</button>
+                <button id="clearBtn" class="btn btn-secondary">Clear All</button>
+                <div class="control-group">
+                    <label for="tempoSlider">Tempo (BPM)</label>
+                    <div class="tempo-display">
+                        <input type="range" id="tempoSlider" min="60" max="200" value="120">
+                        <span id="tempoVal">120</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="sequencer" id="sequencerGrid">
+            <!-- Populated via JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        // Instrument Definitions
+        const instruments = [
+            { id: 'bass', name: 'Bass Drum', defaultVol: 0.8 },
+            { id: 'kick', name: 'Kick', defaultVol: 0.8 },
+            { id: 'snare', name: 'Snare', defaultVol: 0.7 },
+            { id: 'clap', name: 'Clap', defaultVol: 0.7 },
+            { id: 'closedHats', name: 'Closed Hi-Hat', defaultVol: 0.5 },
+            { id: 'openHats', name: 'Open Hi-Hat', defaultVol: 0.5 },
+            { id: 'lowTom', name: 'Low Tom', defaultVol: 0.7 },
+            { id: 'highTom', name: 'High Tom', defaultVol: 0.7 }
+        ];
+
+        const NUM_STEPS = 16;
+        
+        // Default groovy pattern pre-loaded
+        let pattern = {
+            bass:        [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+            kick:        [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,1],
+            snare:       [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0],
+            clap:        [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,1],
+            closedHats:  [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
+            openHats:    [0,0,0,0, 0,0,1,0, 0,0,0,0, 0,0,1,0],
+            lowTom:      [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
+            highTom:     [0,0,0,0, 0,0,0,0, 0,0,0,1, 0,0,1,0]
+        };
+
+        // State variables
+        let audioCtx = null;
+        let noiseBuffer = null;
+        let isPlaying = false;
+        let isLooping = true;
+        let bpm = 120;
+        let currentStep = 0;
+        let lastPlayedStep = -1;
+        
+        // Audio routing nodes per instrument (gain & mute status)
+        let instrumentGains = {};
+        let instrumentMutes = {};
+
+        // Scheduler timing variables
+        let nextNoteTime = 0.0;
+        let scheduleAheadTime = 0.1; // seconds
+        let lookaheadInterval = 25.0; // ms
+        let timerID = null;
+        let animFrameId = null;
+
+        // DOM elements cache
+        const playBtn = document.getElementById('playBtn');
+        const loopBtn = document.getElementById('loopBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const tempoSlider = document.getElementById('tempoSlider');
+        const tempoVal = document.getElementById('tempoVal');
+        const sequencerGrid = document.getElementById('sequencerGrid');
+
+        function buildGrid() {
+            sequencerGrid.innerHTML = '';
+            
+            instruments.forEach(inst => {
+                const row = document.createElement('div');
+                row.className = 'instrument-row';
+
+                // Info / Control column
+                const info = document.createElement('div');
+                info.className = 'instrument-info';
+                
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'instrument-name';
+                nameDiv.textContent = inst.name;
+
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'instrument-controls';
+
+                const muteBtn = document.createElement('button');
+                muteBtn.className = 'mute-btn';
+                muteBtn.textContent = 'MUTE';
+                instrumentMutes[inst.id] = false;
+                muteBtn.onclick = () => {
+                    instrumentMutes[inst.id] = !instrumentMutes[inst.id];
+                    muteBtn.classList.toggle('muted', instrumentMutes[inst.id]);
+                    updateInstrumentVolume(inst.id);
+                };
+
+                const volSlider = document.createElement('input');
+                volSlider.type = 'range';
+                volSlider.min = '0';
+                volSlider.max = '1';
+                volSlider.step = '0.01';
+                volSlider.value = inst.defaultVol;
+                volSlider.className = 'vol-slider';
+                volSlider.oninput = () => {
+                    updateInstrumentVolume(inst.id);
+                };
+
+                controlsDiv.appendChild(muteBtn);
+                controlsDiv.appendChild(volSlider);
+                info.appendChild(nameDiv);
+                info.appendChild(controlsDiv);
+                row.appendChild(info);
+
+                // Steps container
+                const stepsContainer = document.createElement('div');
+                stepsContainer.className = 'steps-container';
+
+                for (let s = 0; s < NUM_STEPS; s++) {
+                    const stepBtn = document.createElement('button');
+                    stepBtn.className = 'step-btn';
+                    if (pattern[inst.id][s] === 1) {
+                        stepBtn.classList.add('active');
+                    }
+                    
+                    // Click event to toggle step
+                    stepBtn.onclick = () => {
+                        pattern[inst.id][s] = pattern[inst.id][s] === 1 ? 0 : 1;
+                        stepBtn.classList.toggle('active', pattern[inst.id][s] === 1);
+                    };
+
+                    stepsContainer.appendChild(stepBtn);
+                }
+
+                row.appendChild(stepsContainer);
+                sequencerGrid.appendChild(row);
+            });
+        }
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                createSharedNoiseBuffer();
+                setupInstrumentBuses();
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function setupInstrumentBuses() {
+            instruments.forEach(inst => {
+                const gainNode = audioCtx.createGain();
+                updateInstrumentVolume(inst.id, gainNode);
+                gainNode.connect(audioCtx.destination);
+                instrumentGains[inst.id] = gainNode;
+            });
+        }
+
+        function updateInstrumentVolume(id, targetGainNode = null) {
+            const gain = targetGainNode || instrumentGains[id];
+            if (!gain || !audioCtx) return;
+            
+            const rowElem = [...sequencerGrid.children].find(r => r.querySelector('.instrument-name').textContent === instruments.find(i => i.id === id).name);
+            const slider = rowElem ? rowElem.querySelector('.vol-slider') : { value: 0.8 };
+            const isMuted = instrumentMutes[id];
+
+            const targetVal = isMuted ? 0 : parseFloat(slider.value);
+            gain.gain.setValueAtTime(targetVal, audioCtx.currentTime);
+        }
+
+        function createSharedNoiseBuffer() {
+            // Create a 2-second white noise buffer reused across snare, clap, hi-hats
+            const bufferSize = audioCtx.sampleRate * 2;
+            noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1;
+            }
+        }
+
+        function playInstrumentSound(id, time) {
+            if (!audioCtx || instrumentMutes[id]) return;
+            const destination = instrumentGains[id];
+
+            switch(id) {
+                case 'bass': {
+                    // Deep, long sub-bass drum
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(110, time);
+                    osc.frequency.exponentialRampToValueAtTime(30, time + 0.35);
+
+                    gain.gain.setValueAtTime(1.0, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+
+                    osc.connect(gain);
+                    gain.connect(destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.4);
+
+                    osc.onended = () => {
+                        osc.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+                case 'kick': {
+                    // Snappy acoustic punchy kick
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, time);
+                    osc.frequency.exponentialRampToValueAtTime(42, time + 0.15);
+
+                    gain.gain.setValueAtTime(1.0, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+                    osc.connect(gain);
+                    gain.connect(destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.2);
+
+                    osc.onended = () => {
+                        osc.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+                case 'snare': {
+                    // Snare drum: body oscillator + filtered noise burst
+                    const osc = audioCtx.createOscillator();
+                    const oscGain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(180, time);
+                    osc.frequency.exponentialRampToValueAtTime(80, time + 0.1);
+                    oscGain.gain.setValueAtTime(0.7, time);
+                    oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+
+                    osc.connect(oscGain);
+                    oscGain.connect(destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.12);
+
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(1000, time);
+
+                    const noiseGain = audioCtx.createGain();
+                    noiseGain.gain.setValueAtTime(0.8, time);
+                    noiseGain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+
+                    noise.connect(filter);
+                    filter.connect(noiseGain);
+                    noiseGain.connect(destination);
+
+                    noise.start(time);
+                    noise.stop(time + 0.2);
+
+                    noise.onended = () => {
+                        noise.disconnect();
+                        filter.disconnect();
+                        noiseGain.disconnect();
+                    };
+                    osc.onended = () => {
+                        osc.disconnect();
+                        oscGain.disconnect();
+                    };
+                    break;
+                }
+                case 'clap': {
+                    // Multi-burst electronic clap using noise & envelope delays
+                    const bursts = [0, 0.01, 0.022, 0.035];
+                    bursts.forEach((offset, idx) => {
+                        const noise = audioCtx.createBufferSource();
+                        noise.buffer = noiseBuffer;
+
+                        const filter = audioCtx.createBiquadFilter();
+                        filter.type = 'bandpass';
+                        filter.frequency.setValueAtTime(1200, time + offset);
+                        filter.Q.setValueAtTime(2.0, time + offset);
+
+                        const gain = audioCtx.createGain();
+                        const duration = (idx === bursts.length - 1) ? 0.25 : 0.04;
+                        gain.gain.setValueAtTime(0.8, time + offset);
+                        gain.gain.exponentialRampToValueAtTime(0.001, time + offset + duration);
+
+                        noise.connect(filter);
+                        filter.connect(gain);
+                        gain.connect(destination);
+
+                        noise.start(time + offset);
+                        noise.stop(time + offset + duration);
+
+                        noise.onended = () => {
+                            noise.disconnect();
+                            filter.disconnect();
+                            gain.disconnect();
+                        };
+                    });
+                    break;
+                }
+                case 'closedHats': {
+                    // Very short crisp closed hi-hat
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(7000, time);
+
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.6, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(destination);
+
+                    noise.start(time);
+                    noise.stop(time + 0.05);
+
+                    noise.onended = () => {
+                        noise.disconnect();
+                        filter.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+                case 'openHats': {
+                    // Ringing open hi-hat
+                    const noise = audioCtx.createBufferSource();
+                    noise.buffer = noiseBuffer;
+
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(5500, time);
+
+                    const gain = audioCtx.createGain();
+                    gain.gain.setValueAtTime(0.7, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.35);
+
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(destination);
+
+                    noise.start(time);
+                    noise.stop(time + 0.35);
+
+                    noise.onended = () => {
+                        noise.disconnect();
+                        filter.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+                case 'lowTom': {
+                    // Low resonant tom
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(130, time);
+                    osc.frequency.exponentialRampToValueAtTime(70, time + 0.25);
+
+                    gain.gain.setValueAtTime(0.9, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.3);
+
+                    osc.onended = () => {
+                        osc.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+                case 'highTom': {
+                    // High resonant tom
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(200, time);
+                    osc.frequency.exponentialRampToValueAtTime(110, time + 0.22);
+
+                    gain.gain.setValueAtTime(0.9, time);
+                    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
+
+                    osc.connect(gain);
+                    gain.connect(destination);
+
+                    osc.start(time);
+                    osc.stop(time + 0.25);
+
+                    osc.onended = () => {
+                        osc.disconnect();
+                        gain.disconnect();
+                    };
+                    break;
+                }
+            }
+        }
+
+        const notesInQueue = [];
+
+        function nextNote() {
+            const secondsPerBeat = 60.0 / bpm;
+            // 16th notes
+            nextNoteTime += 0.25 * secondsPerBeat;
+            currentStep = (currentStep + 1) % NUM_STEPS;
+        }
+
+        function scheduleNote(stepNumber, time) {
+            notesInQueue.push({ step: stepNumber, time: time });
+
+            // Trigger sounding instruments for this step
+            instruments.forEach(inst => {
+                if (pattern[inst.id][stepNumber] === 1) {
+                    playInstrumentSound(inst.id, time);
+                }
+            });
+        }
+
+        function scheduler() {
+            // While there is audio that needs to be scheduled within the ahead window
+            while (nextNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+                scheduleNote(currentStep, nextNoteTime);
+                nextNote();
+                
+                // Handle end of pattern when loop is off
+                if (currentStep === 0 && !isLooping && nextNoteTime > audioCtx.currentTime + 0.1) {
+                    // Stop once full loop iteration completes
+                    setTimeout(() => {
+                        if (isPlaying) {
+                            togglePlay();
+                        }
+                    }, (nextNoteTime - audioCtx.currentTime) * 1000);
+                    break;
+                }
+            }
+        }
+
+        function drawPlayhead() {
+            if (!isPlaying) return;
+
+            const currentTime = audioCtx.currentTime;
+
+            // Find the note in queue closest to current audio time
+            let targetStep = currentStep;
+            while (notesInQueue.length && notesInQueue[0].time < currentTime) {
+                targetStep = notesInQueue[0].step;
+                notesInQueue.shift();
+            }
+
+            if (targetStep !== lastPlayedStep) {
+                updatePlayheadUI(targetStep);
+                lastPlayedStep = targetStep;
+            }
+
+            animFrameId = requestAnimationFrame(drawPlayhead);
+        }
+
+        function updatePlayheadUI(newStep) {
+            const rows = sequencerGrid.children;
+            for (let r = 0; r < rows.length; r++) {
+                const steps = rows[r].querySelector('.steps-container').children;
+                if (lastPlayedStep >= 0 && steps[lastPlayedStep]) {
+                    steps[lastPlayedStep].classList.remove('playhead');
+                }
+                if (steps[newStep]) {
+                    steps[newStep].classList.add('playhead');
+                }
+            }
+        }
+
+        function clearPlayheadUI() {
+            const rows = sequencerGrid.children;
+            for (let r = 0; r < rows.length; r++) {
+                const steps = rows[r].querySelector('.steps-container').children;
+                if (lastPlayedStep >= 0 && steps[lastPlayedStep]) {
+                    steps[lastPlayedStep].classList.remove('playhead');
+                }
+            }
+            lastPlayedStep = -1;
+        }
+
+        function togglePlay() {
+            initAudio();
+
+            isPlaying = !isPlaying;
+            playBtn.classList.toggle('active', isPlaying);
+
+            if (isPlaying) {
+                currentStep = 0;
+                lastPlayedStep = -1;
+                notesInQueue.length = 0;
+                nextNoteTime = audioCtx.currentTime + 0.05;
+                audioCtx.resume();
+                
+                timerID = setInterval(scheduler, lookaheadInterval);
+                animFrameId = requestAnimationFrame(drawPlayhead);
+            } else {
+                clearInterval(timerID);
+                cancelAnimationFrame(animFrameId);
+                clearPlayheadUI();
+                if (audioCtx) {
+                    audioCtx.suspend();
+                }
+            }
+        }
+
+        playBtn.onclick = togglePlay;
+
+        loopBtn.onclick = () => {
+            isLooping = !isLooping;
+            loopBtn.textContent = `Loop: ${isLooping ? 'ON' : 'OFF'}`;
+            loopBtn.classList.toggle('active', isLooping);
+        };
+
+        clearBtn.onclick = () => {
+            instruments.forEach(inst => {
+                pattern[inst.id].fill(0);
+            });
+            // Update grid view buttons
+            const rows = sequencerGrid.children;
+            for (let r = 0; r < rows.length; r++) {
+                const steps = rows[r].querySelector('.steps-container').children;
+                for (let s = 0; s < steps.length; s++) {
+                    steps[s].classList.remove('active');
+                }
+            }
+        };
+
+        tempoSlider.oninput = (e) => {
+            bpm = parseInt(e.target.value);
+            tempoVal.textContent = bpm;
+        };
+
+        // Initialize grid on load
+        window.onload = () => {
+            buildGrid();
+        };
+    </script>
+</body>
+</html>

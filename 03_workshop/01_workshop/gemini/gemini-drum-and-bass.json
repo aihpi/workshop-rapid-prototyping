@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "bpm": 174,
+  "isLooping": true,
+  "master": {
+    "volume": 0.8,
+    "thresh": -24,
+    "ratio": 4,
+    "revMix": 0.15,
+    "revTime": 2
+  },
+  "pattern": {
+    "bass": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+    "kick": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    "snare": [0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0],
+    "clap": [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+    "closedHats": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "openHats": [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    "lowTom": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "highTom": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  },
+  "instruments": [
+    { "id": "bass", "muted": false, "volume": 0.8, "params": { "tune": 0, "decay": 0.3, "lpf": 1000, "lpfQ": 1, "hpf": 20, "drive": 1, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0, "revTime": 1 } },
+    { "id": "kick", "muted": false, "volume": 0.85, "params": { "tune": 2, "decay": 0.12, "lpf": 2000, "lpfQ": 1, "hpf": 30, "drive": 0.5, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0, "revTime": 0.8 } },
+    { "id": "snare", "muted": false, "volume": 0.8, "params": { "tune": 3, "decay": 0.15, "lpf": 10000, "lpfQ": 1, "hpf": 200, "drive": 0.2, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0.1, "revTime": 0.8 } },
+    { "id": "clap", "muted": false, "volume": 0.6, "params": { "tune": 2, "decay": 0.15, "lpf": 10000, "lpfQ": 1, "hpf": 400, "drive": 0, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0.1, "revTime": 0.8 } },
+    { "id": "closedHats", "muted": false, "volume": 0.5, "params": { "tune": 3, "decay": 0.03, "lpf": 16000, "lpfQ": 1, "hpf": 4000, "drive": 0, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0.02, "revTime": 0.5 } },
+    { "id": "openHats", "muted": false, "volume": 0.5, "params": { "tune": 2, "decay": 0.2, "lpf": 15000, "lpfQ": 1, "hpf": 3000, "drive": 0, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0.05, "revTime": 0.8 } },
+    { "id": "lowTom", "muted": false, "volume": 0.7, "params": { "tune": 2, "decay": 0.2, "lpf": 2500, "lpfQ": 1, "hpf": 50, "drive": 0, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0, "revTime": 0.8 } },
+    { "id": "highTom", "muted": false, "volume": 0.7, "params": { "tune": 2, "decay": 0.18, "lpf": 3500, "lpfQ": 1, "hpf": 70, "drive": 0, "delayTime": 0.1, "delayFb": 0, "delayMix": 0, "revMix": 0, "revTime": 0.8 } }
+  ]
+}
